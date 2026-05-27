@@ -9,7 +9,7 @@ import (
 	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/json/badoption"
-	"xray-cli/subscription"
+	"xray-go/subscription"
 )
 
 type Server struct {

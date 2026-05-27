@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"xray-cli/subscription"
-	"xray-cli/singbox"
-	"xray-cli/xrayproxy"
+	"xray-go/subscription"
+	"xray-go/singbox"
+	"xray-go/xrayproxy"
 
 	"golang.org/x/net/proxy"
 )

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"xray-cli/subscription"
+	"xray-go/subscription"
 )
 
 var regionKeywords = map[string][]string{

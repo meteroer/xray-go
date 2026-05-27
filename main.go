@@ -7,12 +7,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"xray-cli/config"
-	"xray-cli/latency"
-	"xray-cli/region"
-	"xray-cli/singbox"
-	"xray-cli/subscription"
-	"xray-cli/xrayproxy"
+	"xray-go/config"
+	"xray-go/latency"
+	"xray-go/region"
+	"xray-go/singbox"
+	"xray-go/subscription"
+	"xray-go/xrayproxy"
 )
 
 type ProxyServer interface {

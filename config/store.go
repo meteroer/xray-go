@@ -17,7 +17,7 @@ func configDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dir := filepath.Join(home, ".xray-cli")
+	dir := filepath.Join(home, ".xray-go")
 	return dir, os.MkdirAll(dir, 0755)
 }
 

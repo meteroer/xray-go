@@ -8,7 +8,7 @@ import (
 	_ "github.com/xtls/xray-core/main/distro/all"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/infra/conf/serial"
-	"xray-cli/subscription"
+	"xray-go/subscription"
 )
 
 type Server struct {
