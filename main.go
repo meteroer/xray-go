@@ -98,23 +98,28 @@ func main() {
 
 		httpPort := *portFlag
 		socksPort := httpPort + 1
-		fmt.Printf("Starting proxy on 127.0.0.1:%d (HTTP) and 127.0.0.1:%d (SOCKS5)...\n", httpPort, socksPort)
+
+		// 选择路由模式
+		cfg.RouteMode = promptRouteMode(cfg.RouteMode)
+		cfg.Save()
+
+		fmt.Printf("Starting proxy on 127.0.0.1:%d (HTTP) and 127.0.0.1:%d (SOCKS5) [%s mode]...\n", httpPort, socksPort, cfg.RouteMode)
 
 		var srv ProxyServer
 		if bestNode.Protocol == "anytls" {
-			srv, err = singbox.Start(bestNode, socksPort, httpPort)
+			srv, err = singbox.Start(bestNode, socksPort, httpPort, cfg.RouteMode, cfg.Whitelist, cfg.Blacklist)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error starting sing-box proxy: %v\n", err)
 				os.Exit(1)
 			}
 		} else {
-			srv, err = xrayproxy.Start(bestNode, socksPort, httpPort)
+			srv, err = xrayproxy.Start(bestNode, socksPort, httpPort, cfg.RouteMode, cfg.Whitelist, cfg.Blacklist)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error starting xray proxy: %v\n", err)
 				os.Exit(1)
 			}
 		}
-		fmt.Printf("Proxy running at 127.0.0.1:%d (HTTP) and 127.0.0.1:%d (SOCKS5)\n", httpPort, socksPort)
+		fmt.Printf("Proxy running at 127.0.0.1:%d (HTTP) and 127.0.0.1:%d (SOCKS5) [%s mode]\n", httpPort, socksPort, cfg.RouteMode)
 
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -266,10 +271,11 @@ func fetchSubOrFallback(sub *config.Subscription, cfg *config.Config) ([]*subscr
 
 	fmt.Printf("Starting fallback proxy with node '%s'...\n", fallbackNode.Name)
 	var srv ProxyServer
+	// 回退模式使用全局模式，确保能获取订阅
 	if fallbackNode.Protocol == "anytls" {
-		srv, err = singbox.Start(fallbackNode, socksPort, httpPort)
+		srv, err = singbox.Start(fallbackNode, socksPort, httpPort, config.RouteModeGlobal, nil, nil)
 	} else {
-		srv, err = xrayproxy.Start(fallbackNode, socksPort, httpPort)
+		srv, err = xrayproxy.Start(fallbackNode, socksPort, httpPort, config.RouteModeGlobal, nil, nil)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("start fallback proxy: %w", err)
@@ -283,4 +289,32 @@ func fetchSubOrFallback(sub *config.Subscription, cfg *config.Config) ([]*subscr
 		return nil, fmt.Errorf("fallback fetch failed: %w", err)
 	}
 	return subscription.Parse(data)
+}
+
+func promptRouteMode(current config.RouteMode) config.RouteMode {
+	fmt.Println("\nSelect route mode:")
+	fmt.Println("  1. Global (所有流量走代理)")
+	fmt.Println("  2. Whitelist (仅白名单走代理，其他直连)")
+	fmt.Println("  3. Blacklist (仅黑名单直连，其他走代理)")
+	fmt.Print("Select (默认使用上次配置): ")
+
+	var input string
+	fmt.Scanln(&input)
+	choice := 0
+	fmt.Sscanf(input, "%d", &choice)
+
+	switch choice {
+	case 1:
+		return config.RouteModeGlobal
+	case 2:
+		return config.RouteModeWhitelist
+	case 3:
+		return config.RouteModeBlacklist
+	default:
+		if current != "" {
+			fmt.Printf("Using saved mode: %s\n", current)
+			return current
+		}
+		return config.RouteModeGlobal
+	}
 }

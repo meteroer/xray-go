@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"xray-go/config"
 	"xray-go/subscription"
 	"xray-go/singbox"
 	"xray-go/xrayproxy"
@@ -52,13 +53,13 @@ func testNode(node *subscription.Node) (time.Duration, error) {
 	}
 
 	if node.Protocol == "anytls" {
-		srv, err := singbox.Start(node, socksPort, httpPort)
+		srv, err := singbox.Start(node, socksPort, httpPort, config.RouteModeGlobal, nil, nil)
 		if err != nil {
 			return 0, fmt.Errorf("start sing-box: %w", err)
 		}
 		defer srv.Stop()
 	} else {
-		srv, err := xrayproxy.Start(node, socksPort, httpPort)
+		srv, err := xrayproxy.Start(node, socksPort, httpPort, config.RouteModeGlobal, nil, nil)
 		if err != nil {
 			return 0, fmt.Errorf("start proxy: %w", err)
 		}

@@ -18,11 +18,22 @@ type Subscription struct {
 	LastFetched time.Time            `json:"last_fetched"`
 }
 
+type RouteMode string
+
+const (
+	RouteModeGlobal    RouteMode = "global"    // 全部走代理
+	RouteModeWhitelist RouteMode = "whitelist" // 白名单走代理，其他直连
+	RouteModeBlacklist RouteMode = "blacklist" // 黑名单直连，其他走代理
+)
+
 type Config struct {
 	Subscriptions   []*Subscription `json:"subscriptions"`
 	LastUsedSub     string          `json:"last_used_subscription"`
 	SubscriptionURL string          `json:"subscription_url,omitempty"`
 	SelectedNode    string          `json:"selected_node,omitempty"`
+	RouteMode       RouteMode       `json:"route_mode,omitempty"`
+	Whitelist       []string        `json:"whitelist,omitempty"`
+	Blacklist       []string        `json:"blacklist,omitempty"`
 }
 
 func configDir() (string, error) {
@@ -42,6 +53,26 @@ func configPath() (string, error) {
 	return filepath.Join(dir, "config.json"), nil
 }
 
+func defaultWhitelist() []string {
+	return []string{
+		"geosite:google",
+		"geosite:youtube",
+		"geosite:github",
+		"geosite:twitter",
+		"geosite:telegram",
+		"geosite:facebook",
+		"geosite:instagram",
+	}
+}
+
+func defaultBlacklist() []string {
+	return []string{
+		"geosite:cn",
+		"geoip:cn",
+		"geoip:private",
+	}
+}
+
 func Load() (*Config, error) {
 	path, err := configPath()
 	if err != nil {
@@ -50,7 +81,11 @@ func Load() (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return &Config{}, nil
+			return &Config{
+				RouteMode: RouteModeGlobal,
+				Whitelist: defaultWhitelist(),
+				Blacklist: defaultBlacklist(),
+			}, nil
 		}
 		return nil, err
 	}
@@ -58,6 +93,17 @@ func Load() (*Config, error) {
 	if err := json.Unmarshal(data, cfg); err != nil {
 		return nil, err
 	}
+	// Set defaults if empty
+	if cfg.RouteMode == "" {
+		cfg.RouteMode = RouteModeGlobal
+	}
+	if len(cfg.Whitelist) == 0 {
+		cfg.Whitelist = defaultWhitelist()
+	}
+	if len(cfg.Blacklist) == 0 {
+		cfg.Blacklist = defaultBlacklist()
+	}
+	// Migration from old single subscription format
 	if cfg.SubscriptionURL != "" && len(cfg.Subscriptions) == 0 {
 		sub := &Subscription{
 			Name:     "default",

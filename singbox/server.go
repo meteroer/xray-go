@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"strings"
 
 	box "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/json/badoption"
+	"xray-go/config"
 	"xray-go/subscription"
 )
 
@@ -35,7 +37,72 @@ func buildTLSOptions(node *subscription.Node) *option.OutboundTLSOptions {
 	return tlsOpts
 }
 
-func Start(node *subscription.Node, socksPort int, httpPort int) (*Server, error) {
+func buildRouteRules(routeMode config.RouteMode, whitelist, blacklist []string) (*option.RouteOptions, []option.Outbound) {
+	directOutbound := option.Outbound{
+		Type: "direct",
+		Tag:  "direct",
+		Options: &option.DirectOutboundOptions{},
+	}
+
+	var rules []option.Rule
+
+	makeRule := func(item string, outbound string) option.Rule {
+		rule := option.Rule{
+			DefaultOptions: option.DefaultRule{
+				RuleAction: option.RuleAction{
+					RouteOptions: option.RouteActionOptions{
+						Outbound: outbound,
+					},
+				},
+			},
+		}
+		if strings.HasPrefix(item, "geosite:") || strings.HasPrefix(item, "geoip:") {
+			// sing-box v1.12+ removed inline geosite/geoip support.
+			// Skip these entries — the user can add explicit domains instead.
+			return rule
+		}
+		rule.DefaultOptions.RawDefaultRule.DomainSuffix = badoption.Listable[string]{item}
+		return rule
+	}
+
+	switch routeMode {
+	case config.RouteModeWhitelist:
+		for _, item := range whitelist {
+			rule := makeRule(item, "proxy")
+			// Skip empty/invalid rules
+			if len(rule.DefaultOptions.RawDefaultRule.DomainSuffix) > 0 {
+				rules = append(rules, rule)
+			}
+		}
+		if len(rules) == 0 {
+			// Fallback to global if no valid whitelist rules
+			return &option.RouteOptions{Final: "proxy"}, nil
+		}
+		return &option.RouteOptions{
+			Rules: rules,
+			Final: "direct",
+		}, []option.Outbound{directOutbound}
+
+	case config.RouteModeBlacklist:
+		for _, item := range blacklist {
+			rule := makeRule(item, "direct")
+			if len(rule.DefaultOptions.RawDefaultRule.DomainSuffix) > 0 {
+				rules = append(rules, rule)
+			}
+		}
+		return &option.RouteOptions{
+			Rules: rules,
+			Final: "proxy",
+		}, []option.Outbound{directOutbound}
+
+	default:
+		return &option.RouteOptions{
+			Final: "proxy",
+		}, nil
+	}
+}
+
+func Start(node *subscription.Node, socksPort int, httpPort int, routeMode config.RouteMode, whitelist, blacklist []string) (*Server, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	ctx = include.Context(ctx)
 
@@ -61,6 +128,9 @@ func Start(node *subscription.Node, socksPort int, httpPort int) (*Server, error
 		cancel()
 		return nil, fmt.Errorf("unsupported protocol for sing-box: %s", node.Protocol)
 	}
+
+	routeOpts, extraOutbounds := buildRouteRules(routeMode, whitelist, blacklist)
+	outbounds = append(outbounds, extraOutbounds...)
 
 	listenAddr := badoption.Addr(netip.MustParseAddr("127.0.0.1"))
 
@@ -91,9 +161,7 @@ func Start(node *subscription.Node, socksPort int, httpPort int) (*Server, error
 			},
 		},
 		Outbounds: outbounds,
-		Route: &option.RouteOptions{
-			Final: "proxy",
-		},
+		Route:    routeOpts,
 	}
 
 	instance, err := box.New(box.Options{

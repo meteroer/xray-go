@@ -8,6 +8,7 @@ import (
 	_ "github.com/xtls/xray-core/main/distro/all"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/infra/conf/serial"
+	"xray-go/config"
 	"xray-go/subscription"
 )
 
@@ -111,8 +112,53 @@ func buildOutbound(node *subscription.Node) string {
 	}
 }
 
-func buildXrayConfig(node *subscription.Node, socksPort int, httpPort int) string {
+func buildRoutingRules(routeMode config.RouteMode, whitelist, blacklist []string) string {
+	if routeMode == config.RouteModeGlobal {
+		return `{"type": "field", "outboundTag": "proxy", "network": "tcp,udp"}`
+	}
+
+	items := whitelist
+	outboundTag := "proxy"
+	defaultTag := "direct"
+	if routeMode == config.RouteModeBlacklist {
+		items = blacklist
+		outboundTag = "direct"
+		defaultTag = "proxy"
+	}
+
+	var domains, geosites, geoips []string
+	for _, item := range items {
+		if strings.HasPrefix(item, "geosite:") {
+			geosites = append(geosites, fmt.Sprintf(`"geosite:%s"`, strings.TrimPrefix(item, "geosite:")))
+		} else if strings.HasPrefix(item, "geoip:") {
+			geoips = append(geoips, fmt.Sprintf(`"geoip:%s"`, strings.TrimPrefix(item, "geoip:")))
+		} else {
+			domains = append(domains, fmt.Sprintf(`"%s"`, item))
+		}
+	}
+
+	var rules []string
+	rule := fmt.Sprintf(`{"type": "field", "outboundTag": "%s"`, outboundTag)
+	if len(domains) > 0 {
+		rule += fmt.Sprintf(`, "domain": [%s]`, strings.Join(domains, ", "))
+	}
+	if len(geosites) > 0 {
+		rule += fmt.Sprintf(`, "domain": [%s]`, strings.Join(geosites, ", "))
+	}
+	if len(geoips) > 0 {
+		rule += fmt.Sprintf(`, "ip": [%s]`, strings.Join(geoips, ", "))
+	}
+	rule += fmt.Sprintf(`, "network": "tcp,udp"}`)
+	rules = append(rules, rule)
+
+	rules = append(rules, fmt.Sprintf(`{"type": "field", "outboundTag": "%s", "network": "tcp,udp"}`, defaultTag))
+
+	return strings.Join(rules, ",")
+}
+
+func buildXrayConfig(node *subscription.Node, socksPort int, httpPort int, routeMode config.RouteMode, whitelist, blacklist []string) string {
 	outbound := buildOutbound(node)
+	routingRules := buildRoutingRules(routeMode, whitelist, blacklist)
 	return fmt.Sprintf(`{
   "log": {"loglevel": "warning"},
   "inbounds": [{
@@ -133,20 +179,16 @@ func buildXrayConfig(node *subscription.Node, socksPort int, httpPort int) strin
     "protocol": "http",
     "settings": {}
   }],
-  "outbounds": [%s],
+  "outbounds": [%s, {"protocol": "freedom", "tag": "direct"}],
   "routing": {
-    "domainStrategy": "AsIs",
-    "rules": [{
-      "type": "field",
-      "outboundTag": "proxy",
-      "network": "tcp,udp"
-    }]
+    "domainStrategy": "IPOnDemand",
+    "rules": [%s]
   }
-}`, socksPort, httpPort, outbound)
+}`, socksPort, httpPort, outbound, routingRules)
 }
 
-func Start(node *subscription.Node, socksPort int, httpPort int) (*Server, error) {
-	configJSON := buildXrayConfig(node, socksPort, httpPort)
+func Start(node *subscription.Node, socksPort int, httpPort int, routeMode config.RouteMode, whitelist, blacklist []string) (*Server, error) {
+	configJSON := buildXrayConfig(node, socksPort, httpPort, routeMode, whitelist, blacklist)
 	cfg, err := serial.LoadJSONConfig(strings.NewReader(configJSON))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load xray config: %w", err)
