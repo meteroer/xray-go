@@ -10,25 +10,25 @@ import (
 )
 
 type Node struct {
-	Name        string
-	Protocol    string
-	Address     string
-	Port        int
-	UUID        string
-	AlterId     int
-	Security    string
-	Network     string
-	Host        string
-	Path        string
-	TLS         bool
-	Flow        string
-	Reality     bool
-	PublicKey   string
-	ShortId     string
-	Fingerprint string
-	Spx         string
-	Insecure    bool
-	SNI         string
+	Name        string `json:"name"`
+	Protocol    string `json:"protocol"`
+	Address     string `json:"address"`
+	Port        int    `json:"port"`
+	UUID        string `json:"uuid"`
+	AlterId     int    `json:"alter_id"`
+	Security    string `json:"security"`
+	Network     string `json:"network"`
+	Host        string `json:"host"`
+	Path        string `json:"path"`
+	TLS         bool   `json:"tls"`
+	Flow        string `json:"flow"`
+	Reality     bool   `json:"reality"`
+	PublicKey   string `json:"public_key"`
+	ShortId     string `json:"short_id"`
+	Fingerprint string `json:"fingerprint"`
+	Spx         string `json:"spx"`
+	Insecure    bool   `json:"insecure"`
+	SNI         string `json:"sni"`
 }
 
 func Parse(data []byte) ([]*Node, error) {
