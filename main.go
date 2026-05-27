@@ -9,9 +9,14 @@ import (
 
 	"xray-cli/config"
 	"xray-cli/latency"
+	"xray-cli/singbox"
 	"xray-cli/subscription"
 	"xray-cli/xrayproxy"
 )
+
+type ProxyServer interface {
+	Stop() error
+}
 
 func main() {
 	urlFlag := flag.String("url", "", "subscription URL (overrides saved config)")
@@ -71,10 +76,20 @@ func main() {
 	httpPort := *portFlag
 	socksPort := httpPort + 1
 	fmt.Printf("Starting proxy on 127.0.0.1:%d (HTTP) and 127.0.0.1:%d (SOCKS5)...\n", httpPort, socksPort)
-	srv, err := xrayproxy.Start(bestNode, socksPort, httpPort)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error starting proxy: %v\n", err)
-		os.Exit(1)
+
+	var srv ProxyServer
+	if bestNode.Protocol == "anytls" {
+		srv, err = singbox.Start(bestNode, socksPort, httpPort)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error starting sing-box proxy: %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		srv, err = xrayproxy.Start(bestNode, socksPort, httpPort)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error starting xray proxy: %v\n", err)
+			os.Exit(1)
+		}
 	}
 	fmt.Printf("Proxy running at 127.0.0.1:%d (HTTP) and 127.0.0.1:%d (SOCKS5)\n", httpPort, socksPort)
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"xray-cli/subscription"
+	"xray-cli/singbox"
 	"xray-cli/xrayproxy"
 
 	"golang.org/x/net/proxy"
@@ -41,20 +42,28 @@ func TestAll(nodes []*subscription.Node, maxConcurrent int) []*Result {
 }
 
 func testNode(node *subscription.Node) (time.Duration, error) {
-	socksPort, err := xrayproxy.GetFreePort()
+	socksPort, err := getFreePort()
 	if err != nil {
 		return 0, fmt.Errorf("get free port: %w", err)
 	}
-	httpPort, err := xrayproxy.GetFreePort()
+	httpPort, err := getFreePort()
 	if err != nil {
 		return 0, fmt.Errorf("get free port: %w", err)
 	}
 
-	srv, err := xrayproxy.Start(node, socksPort, httpPort)
-	if err != nil {
-		return 0, fmt.Errorf("start proxy: %w", err)
+	if node.Protocol == "anytls" {
+		srv, err := singbox.Start(node, socksPort, httpPort)
+		if err != nil {
+			return 0, fmt.Errorf("start sing-box: %w", err)
+		}
+		defer srv.Stop()
+	} else {
+		srv, err := xrayproxy.Start(node, socksPort, httpPort)
+		if err != nil {
+			return 0, fmt.Errorf("start proxy: %w", err)
+		}
+		defer srv.Stop()
 	}
-	defer srv.Stop()
 
 	time.Sleep(200 * time.Millisecond)
 
@@ -77,6 +86,10 @@ func testNode(node *subscription.Node) (time.Duration, error) {
 	conn.Close()
 	elapsed := time.Since(start)
 	return elapsed, nil
+}
+
+func getFreePort() (int, error) {
+	return xrayproxy.GetFreePort()
 }
 
 func FindBest(nodes []*subscription.Node) (*subscription.Node, time.Duration, error) {

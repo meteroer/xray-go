@@ -10,23 +10,25 @@ import (
 )
 
 type Node struct {
-	Name       string
-	Protocol   string
-	Address    string
-	Port       int
-	UUID       string
-	AlterId    int
-	Security   string
-	Network    string
-	Host       string
-	Path       string
-	TLS        bool
-	Flow       string
-	Reality    bool
-	PublicKey  string
-	ShortId    string
+	Name        string
+	Protocol    string
+	Address     string
+	Port        int
+	UUID        string
+	AlterId     int
+	Security    string
+	Network     string
+	Host        string
+	Path        string
+	TLS         bool
+	Flow        string
+	Reality     bool
+	PublicKey   string
+	ShortId     string
 	Fingerprint string
-	Spx        string
+	Spx         string
+	Insecure    bool
+	SNI         string
 }
 
 func Parse(data []byte) ([]*Node, error) {
@@ -68,6 +70,9 @@ func parseLine(line string) (*Node, error) {
 	}
 	if strings.HasPrefix(line, "ss://") {
 		return parseShadowsocks(line[5:])
+	}
+	if strings.HasPrefix(line, "anytls://") {
+		return parseAnyTLS(line[9:])
 	}
 	return nil, fmt.Errorf("unsupported protocol")
 }
@@ -235,5 +240,30 @@ func parseShadowsocks(data string) (*Node, error) {
 		UUID:     password,
 		Security: method,
 		Network:  "tcp",
+	}, nil
+}
+
+func parseAnyTLS(data string) (*Node, error) {
+	u, err := url.Parse("anytls://" + data)
+	if err != nil {
+		return nil, err
+	}
+	port, _ := strconv.Atoi(u.Port())
+	if port == 0 {
+		port = 443
+	}
+	query := u.Query()
+	insecure := query.Get("insecure") == "1"
+	sni := query.Get("sni")
+	return &Node{
+		Name:     u.Fragment,
+		Protocol: "anytls",
+		Address:  u.Hostname(),
+		Port:     port,
+		UUID:     u.User.Username(),
+		Network:  "tcp",
+		TLS:      true,
+		Insecure: insecure,
+		SNI:      sni,
 	}, nil
 }
