@@ -163,7 +163,7 @@ func buildXrayConfig(node *subscription.Node, socksPort int, httpPort int, route
   "log": {"loglevel": "warning"},
   "inbounds": [{
     "port": %d,
-    "listen": "127.0.0.1",
+    "listen": "0.0.0.0",
     "protocol": "socks",
     "settings": {
       "udp": true,
@@ -175,7 +175,7 @@ func buildXrayConfig(node *subscription.Node, socksPort int, httpPort int, route
     }
   }, {
     "port": %d,
-    "listen": "127.0.0.1",
+    "listen": "0.0.0.0",
     "protocol": "http",
     "settings": {}
   }],

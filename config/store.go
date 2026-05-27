@@ -15,6 +15,7 @@ type Subscription struct {
 	URL         string               `json:"url"`
 	Nodes       []*subscription.Node `json:"nodes,omitempty"`
 	LastNode    string               `json:"last_node"`
+	LastRegion  string               `json:"last_region,omitempty"`
 	LastFetched time.Time            `json:"last_fetched"`
 }
 

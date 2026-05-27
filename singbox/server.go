@@ -132,7 +132,7 @@ func Start(node *subscription.Node, socksPort int, httpPort int, routeMode confi
 	routeOpts, extraOutbounds := buildRouteRules(routeMode, whitelist, blacklist)
 	outbounds = append(outbounds, extraOutbounds...)
 
-	listenAddr := badoption.Addr(netip.MustParseAddr("127.0.0.1"))
+	listenAddr := badoption.Addr(netip.MustParseAddr("0.0.0.0"))
 
 	opts := option.Options{
 		Log: &option.LogOptions{

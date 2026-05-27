@@ -33,6 +33,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	// "start" subcommand: non-interactive, use last saved config
+	args := flag.Args()
+	if len(args) > 0 && args[0] == "start" {
+		startMode(cfg, *portFlag, *updateFlag)
+		return
+	}
+
 	if *urlFlag != "" {
 		name := promptSubName()
 		sub := cfg.AddSubscription(name, *urlFlag)
@@ -74,6 +81,7 @@ func main() {
 
 		groups := region.GroupByRegion(nodes)
 		selectedRegion := region.PromptRegion(groups)
+		sub.LastRegion = selectedRegion
 
 		var targetNodes []*subscription.Node
 		if selectedRegion == "" {
@@ -96,39 +104,91 @@ func main() {
 		sub.LastNode = bestNode.Name
 		config.Save(cfg)
 
-		httpPort := *portFlag
-		socksPort := httpPort + 1
-
 		// 选择路由模式
 		cfg.RouteMode = promptRouteMode(cfg.RouteMode)
 		cfg.Save()
 
-		fmt.Printf("Starting proxy on 127.0.0.1:%d (HTTP) and 127.0.0.1:%d (SOCKS5) [%s mode]...\n", httpPort, socksPort, cfg.RouteMode)
-
-		var srv ProxyServer
-		if bestNode.Protocol == "anytls" {
-			srv, err = singbox.Start(bestNode, socksPort, httpPort, cfg.RouteMode, cfg.Whitelist, cfg.Blacklist)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error starting sing-box proxy: %v\n", err)
-				os.Exit(1)
-			}
-		} else {
-			srv, err = xrayproxy.Start(bestNode, socksPort, httpPort, cfg.RouteMode, cfg.Whitelist, cfg.Blacklist)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error starting xray proxy: %v\n", err)
-				os.Exit(1)
-			}
-		}
-		fmt.Printf("Proxy running at 127.0.0.1:%d (HTTP) and 127.0.0.1:%d (SOCKS5) [%s mode]\n", httpPort, socksPort, cfg.RouteMode)
-
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-		<-sigCh
-		fmt.Println("\nShutting down...")
-		srv.Stop()
-		fmt.Println("Done.")
+		socksPort := *portFlag + 1
+		runProxy(bestNode, socksPort, *portFlag, cfg)
 		return
 	}
+}
+
+func startMode(cfg *config.Config, httpPort int, updateFlag bool) {
+	if len(cfg.Subscriptions) == 0 {
+		fmt.Fprintln(os.Stderr, "No subscriptions configured. Run without 'start' first.")
+		os.Exit(1)
+	}
+	sub := cfg.FindSubscription(cfg.LastUsedSub)
+	if sub == nil {
+		sub = cfg.Subscriptions[0]
+		cfg.LastUsedSub = sub.Name
+	}
+	cfg.Save()
+
+	nodes := sub.Nodes
+	if len(nodes) == 0 || updateFlag {
+		fmt.Println("Fetching subscription...")
+		fetchedNodes, err := fetchSubOrFallback(sub, cfg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		nodes = fetchedNodes
+		sub.Nodes = nodes
+		sub.LastFetched = time.Now()
+		cfg.Save()
+	} else {
+		fmt.Printf("Using cached nodes (%d nodes)\n", len(nodes))
+	}
+
+	groups := region.GroupByRegion(nodes)
+	var targetNodes []*subscription.Node
+	if sub.LastRegion == "" {
+		targetNodes = nodes
+	} else {
+		targetNodes = groups[sub.LastRegion]
+		if len(targetNodes) == 0 {
+			targetNodes = nodes
+		}
+	}
+
+	fmt.Println("Testing latency...")
+	bestNode, bestLatency, err := latency.FindBest(targetNodes)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("Best node: %s (%v)\n", bestNode.Name, bestLatency)
+	sub.LastNode = bestNode.Name
+	cfg.Save()
+
+	socksPort := httpPort + 1
+	runProxy(bestNode, socksPort, httpPort, cfg)
+}
+
+func runProxy(node *subscription.Node, socksPort, httpPort int, cfg *config.Config) {
+	fmt.Printf("Starting proxy on 0.0.0.0:%d (HTTP) and 0.0.0.0:%d (SOCKS5) [%s mode]...\n", httpPort, socksPort, cfg.RouteMode)
+
+	var srv ProxyServer
+	var err error
+	if node.Protocol == "anytls" {
+		srv, err = singbox.Start(node, socksPort, httpPort, cfg.RouteMode, cfg.Whitelist, cfg.Blacklist)
+	} else {
+		srv, err = xrayproxy.Start(node, socksPort, httpPort, cfg.RouteMode, cfg.Whitelist, cfg.Blacklist)
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error starting proxy: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("Proxy running at 0.0.0.0:%d (HTTP) and 0.0.0.0:%d (SOCKS5) [%s mode]\n", httpPort, socksPort, cfg.RouteMode)
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	<-sigCh
+	fmt.Println("\nShutting down...")
+	srv.Stop()
+	fmt.Println("Done.")
 }
 
 func selectSubscription(cfg *config.Config) *config.Subscription {
@@ -271,7 +331,6 @@ func fetchSubOrFallback(sub *config.Subscription, cfg *config.Config) ([]*subscr
 
 	fmt.Printf("Starting fallback proxy with node '%s'...\n", fallbackNode.Name)
 	var srv ProxyServer
-	// 回退模式使用全局模式，确保能获取订阅
 	if fallbackNode.Protocol == "anytls" {
 		srv, err = singbox.Start(fallbackNode, socksPort, httpPort, config.RouteModeGlobal, nil, nil)
 	} else {
@@ -283,7 +342,7 @@ func fetchSubOrFallback(sub *config.Subscription, cfg *config.Config) ([]*subscr
 	defer srv.Stop()
 	time.Sleep(200 * time.Millisecond)
 
-	proxyAddr := fmt.Sprintf("127.0.0.1:%d", socksPort)
+	proxyAddr := fmt.Sprintf("0.0.0.0:%d", socksPort)
 	data, err = subscription.FetchWithProxy(sub.URL, proxyAddr)
 	if err != nil {
 		return nil, fmt.Errorf("fallback fetch failed: %w", err)
