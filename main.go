@@ -9,6 +9,7 @@ import (
 
 	"xray-cli/config"
 	"xray-cli/latency"
+	"xray-cli/region"
 	"xray-cli/singbox"
 	"xray-cli/subscription"
 	"xray-cli/xrayproxy"
@@ -62,8 +63,19 @@ func main() {
 	}
 	fmt.Printf("Found %d nodes\n", len(nodes))
 
-	fmt.Println("Testing latency...")
-	bestNode, bestLatency, err := latency.FindBest(nodes)
+	groups := region.GroupByRegion(nodes)
+	selectedRegion := region.PromptRegion(groups)
+
+	var targetNodes []*subscription.Node
+	if selectedRegion == "" {
+		targetNodes = nodes
+	} else {
+		targetNodes = groups[selectedRegion]
+		fmt.Printf("\nSelected region: %s (%d nodes)\n", selectedRegion, len(targetNodes))
+	}
+
+	fmt.Println("\nTesting latency...")
+	bestNode, bestLatency, err := latency.FindBest(targetNodes)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
