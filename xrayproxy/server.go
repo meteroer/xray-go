@@ -5,7 +5,7 @@ import (
 	"net"
 	"strings"
 
-	_ "github.com/xtls/xray-core/main/json"
+	_ "github.com/xtls/xray-core/main/distro/all"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/infra/conf/serial"
 	"xray-cli/subscription"
@@ -19,7 +19,20 @@ func buildStreamSettings(node *subscription.Node) string {
 	var parts []string
 	parts = append(parts, fmt.Sprintf(`"network": "%s"`, node.Network))
 
-	if node.TLS {
+	if node.Reality {
+		realityConfig := `"security": "reality", "realitySettings": {`
+		realityConfig += fmt.Sprintf(`"serverName": "%s", `, node.Host)
+		realityConfig += fmt.Sprintf(`"publicKey": "%s", `, node.PublicKey)
+		realityConfig += fmt.Sprintf(`"shortId": "%s"`, node.ShortId)
+		if node.Fingerprint != "" {
+			realityConfig += fmt.Sprintf(`, "fingerprint": "%s"`, node.Fingerprint)
+		}
+		if node.Spx != "" {
+			realityConfig += fmt.Sprintf(`, "spiderX": "%s"`, node.Spx)
+		}
+		realityConfig += "}"
+		parts = append(parts, realityConfig)
+	} else if node.TLS {
 		tlsConfig := `"security": "tls", "tlsSettings": {`
 		if node.Host != "" {
 			tlsConfig += fmt.Sprintf(`"serverName": "%s"`, node.Host)

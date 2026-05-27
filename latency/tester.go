@@ -3,13 +3,13 @@ package latency
 import (
 	"context"
 	"fmt"
-	"net"
-	"net/http"
 	"sync"
 	"time"
 
 	"xray-cli/subscription"
 	"xray-cli/xrayproxy"
+
+	"golang.org/x/net/proxy"
 )
 
 type Result struct {
@@ -58,26 +58,24 @@ func testNode(node *subscription.Node) (time.Duration, error) {
 
 	time.Sleep(200 * time.Millisecond)
 
-	client := &http.Client{
-		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return (&net.Dialer{Timeout: 3 * time.Second}).DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", httpPort))
-			},
-		},
+	dialer, err := proxy.SOCKS5("tcp", fmt.Sprintf("127.0.0.1:%d", socksPort), nil, proxy.Direct)
+	if err != nil {
+		return 0, fmt.Errorf("socks5 dialer: %w", err)
+	}
+	contextDialer, ok := dialer.(proxy.ContextDialer)
+	if !ok {
+		return 0, fmt.Errorf("socks5 dialer does not support DialContext")
 	}
 
 	start := time.Now()
-	resp, err := client.Get("http://www.gstatic.com/generate_204")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	conn, err := contextDialer.DialContext(ctx, "tcp", "cp.cloudflare.com:80")
 	if err != nil {
-		return 0, fmt.Errorf("http request: %w", err)
+		return 0, fmt.Errorf("dial: %w", err)
 	}
-	defer resp.Body.Close()
+	conn.Close()
 	elapsed := time.Since(start)
-
-	if resp.StatusCode != 204 && resp.StatusCode != 200 {
-		return 0, fmt.Errorf("unexpected status: %d", resp.StatusCode)
-	}
 	return elapsed, nil
 }
 

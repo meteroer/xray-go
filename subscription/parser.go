@@ -10,18 +10,23 @@ import (
 )
 
 type Node struct {
-	Name     string
-	Protocol string
-	Address  string
-	Port     int
-	UUID     string
-	AlterId  int
-	Security string
-	Network  string
-	Host     string
-	Path     string
-	TLS      bool
-	Flow     string
+	Name       string
+	Protocol   string
+	Address    string
+	Port       int
+	UUID       string
+	AlterId    int
+	Security   string
+	Network    string
+	Host       string
+	Path       string
+	TLS        bool
+	Flow       string
+	Reality    bool
+	PublicKey  string
+	ShortId    string
+	Fingerprint string
+	Spx        string
 }
 
 func Parse(data []byte) ([]*Node, error) {
@@ -138,18 +143,28 @@ func parseVless(data string) (*Node, error) {
 		host = query.Get("sni")
 	}
 	security := query.Get("security")
-	tls := security == "tls" || security == "reality"
+	tls := security == "tls"
+	reality := security == "reality"
+	sni := query.Get("sni")
+	if sni == "" {
+		sni = host
+	}
 	return &Node{
-		Name:     u.Fragment,
-		Protocol: "vless",
-		Address:  u.Hostname(),
-		Port:     port,
-		UUID:     u.User.Username(),
-		Network:  network,
-		Host:     host,
-		Path:     query.Get("path"),
-		TLS:      tls,
-		Flow:     query.Get("flow"),
+		Name:        u.Fragment,
+		Protocol:    "vless",
+		Address:     u.Hostname(),
+		Port:        port,
+		UUID:        u.User.Username(),
+		Network:     network,
+		Host:        sni,
+		Path:        query.Get("path"),
+		TLS:         tls,
+		Flow:        query.Get("flow"),
+		Reality:     reality,
+		PublicKey:   query.Get("pbk"),
+		ShortId:     query.Get("sid"),
+		Fingerprint: query.Get("fp"),
+		Spx:         query.Get("spx"),
 	}, nil
 }
 
