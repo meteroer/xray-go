@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
 
 	"xray-go/config"
 	"xray-go/latency"
@@ -20,7 +22,7 @@ type ProxyServer interface {
 }
 
 func main() {
-	urlFlag := flag.String("url", "", "subscription URL (overrides saved config)")
+	urlFlag := flag.String("url", "", "add a new subscription URL")
 	portFlag := flag.Int("port", 16708, "local proxy port")
 	updateFlag := flag.Bool("update", false, "force re-fetch subscription and re-test latency")
 	flag.Parse()
@@ -31,84 +33,254 @@ func main() {
 		os.Exit(1)
 	}
 
-	subURL := *urlFlag
-	if subURL == "" {
-		subURL = cfg.SubscriptionURL
+	if *urlFlag != "" {
+		name := promptSubName()
+		sub := cfg.AddSubscription(name, *urlFlag)
+		cfg.LastUsedSub = name
+		cfg.Save()
+		nodes, err := fetchSubOrFallback(sub, cfg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error fetching subscription: %v\n", err)
+			os.Exit(1)
+		}
+		sub.Nodes = nodes
+		sub.LastFetched = time.Now()
+		cfg.Save()
 	}
-	if subURL == "" || *updateFlag {
-		url, err := config.PromptSubscriptionURL()
+
+	for {
+		sub := selectSubscription(cfg)
+		if sub == nil {
+			os.Exit(0)
+		}
+		cfg.LastUsedSub = sub.Name
+		cfg.Save()
+
+		nodes := sub.Nodes
+		if len(nodes) == 0 || *updateFlag {
+			fetchedNodes, err := fetchSubOrFallback(sub, cfg)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				config.Save(cfg)
+				continue
+			}
+			nodes = fetchedNodes
+			sub.Nodes = nodes
+			sub.LastFetched = time.Now()
+			config.Save(cfg)
+		} else {
+			fmt.Printf("Using cached nodes (%d nodes)\n", len(nodes))
+		}
+
+		groups := region.GroupByRegion(nodes)
+		selectedRegion := region.PromptRegion(groups)
+
+		var targetNodes []*subscription.Node
+		if selectedRegion == "" {
+			targetNodes = nodes
+		} else {
+			targetNodes = groups[selectedRegion]
+			fmt.Printf("\nSelected region: %s (%d nodes)\n", selectedRegion, len(targetNodes))
+		}
+
+		fmt.Println("\nTesting latency...")
+		bestNode, bestLatency, err := latency.FindBest(targetNodes)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			if len(cfg.Subscriptions) > 0 {
+				continue
+			}
 			os.Exit(1)
 		}
-		subURL = url
+		fmt.Printf("Best node: %s (%v)\n", bestNode.Name, bestLatency)
+		sub.LastNode = bestNode.Name
+		config.Save(cfg)
+
+		httpPort := *portFlag
+		socksPort := httpPort + 1
+		fmt.Printf("Starting proxy on 127.0.0.1:%d (HTTP) and 127.0.0.1:%d (SOCKS5)...\n", httpPort, socksPort)
+
+		var srv ProxyServer
+		if bestNode.Protocol == "anytls" {
+			srv, err = singbox.Start(bestNode, socksPort, httpPort)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error starting sing-box proxy: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			srv, err = xrayproxy.Start(bestNode, socksPort, httpPort)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error starting xray proxy: %v\n", err)
+				os.Exit(1)
+			}
+		}
+		fmt.Printf("Proxy running at 127.0.0.1:%d (HTTP) and 127.0.0.1:%d (SOCKS5)\n", httpPort, socksPort)
+
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+		<-sigCh
+		fmt.Println("\nShutting down...")
+		srv.Stop()
+		fmt.Println("Done.")
+		return
+	}
+}
+
+func selectSubscription(cfg *config.Config) *config.Subscription {
+	if len(cfg.Subscriptions) == 0 {
+		fmt.Println("No saved subscriptions.")
+		return promptAddSub(cfg)
 	}
 
-	cfg.SubscriptionURL = subURL
-	if err := config.Save(cfg); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to save config: %v\n", err)
-	}
+	for {
+		fmt.Println("\nSaved subscriptions:")
+		for i, s := range cfg.Subscriptions {
+			cached := len(s.Nodes)
+			marker := " "
+			if s.Name == cfg.LastUsedSub {
+				marker = "*"
+			}
+			fmt.Printf("  %2d. %s%s (%s) [%d cached]\n", i+1, marker, s.Name, s.URL, cached)
+		}
+		fmt.Printf("  %2d. + Add new subscription\n", len(cfg.Subscriptions)+1)
+		fmt.Printf("  %2d. - Delete a subscription\n", len(cfg.Subscriptions)+2)
+		fmt.Printf("  %2d. Exit\n", len(cfg.Subscriptions)+3)
 
-	fmt.Println("Fetching subscription...")
-	data, err := subscription.Fetch(subURL)
+		fmt.Print("\nSelect option: ")
+		var input string
+		fmt.Scanln(&input)
+		choice := 0
+		fmt.Sscanf(input, "%d", &choice)
+
+		if choice >= 1 && choice <= len(cfg.Subscriptions) {
+			return cfg.Subscriptions[choice-1]
+		}
+		if choice == len(cfg.Subscriptions)+1 {
+			sub := promptAddSub(cfg)
+			if sub != nil {
+				return sub
+			}
+			continue
+		}
+		if choice == len(cfg.Subscriptions)+2 {
+			promptDeleteSub(cfg)
+			continue
+		}
+		if choice == len(cfg.Subscriptions)+3 {
+			return nil
+		}
+		fmt.Println("Invalid choice")
+	}
+}
+
+func promptSubName() string {
+	fmt.Print("Enter subscription name: ")
+	var input string
+	fmt.Scanln(&input)
+	cleaned := strings.TrimSpace(input)
+	if cleaned == "" {
+		cleaned = fmt.Sprintf("sub-%d", time.Now().Unix())
+	}
+	return cleaned
+}
+
+func promptAddSub(cfg *config.Config) *config.Subscription {
+	name := promptSubName()
+	fmt.Print("Enter subscription URL: ")
+	var url string
+	fmt.Scanln(&url)
+	if url == "" {
+		fmt.Println("URL cannot be empty")
+		return nil
+	}
+	sub := cfg.AddSubscription(name, url)
+	cfg.LastUsedSub = name
+	cfg.Save()
+	fmt.Printf("Fetching subscription '%s'...\n", name)
+	nodes, err := fetchSubOrFallback(sub, cfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error fetching subscription: %v\n", err)
-		os.Exit(1)
+		cfg.Save()
+		return nil
+	}
+	sub.Nodes = nodes
+	sub.LastFetched = time.Now()
+	cfg.Save()
+	fmt.Printf("Got %d nodes from '%s'\n", len(nodes), name)
+	return sub
+}
+
+func promptDeleteSub(cfg *config.Config) {
+	if len(cfg.Subscriptions) == 0 {
+		fmt.Println("No subscriptions to delete.")
+		return
+	}
+	fmt.Println("\nSelect subscription to delete:")
+	for i, s := range cfg.Subscriptions {
+		fmt.Printf("  %2d. %s\n", i+1, s.Name)
+	}
+	fmt.Print("Select: ")
+	var input string
+	fmt.Scanln(&input)
+	choice := 0
+	fmt.Sscanf(input, "%d", &choice)
+	if choice < 1 || choice > len(cfg.Subscriptions) {
+		fmt.Println("Invalid choice")
+		return
+	}
+	sub := cfg.Subscriptions[choice-1]
+	fmt.Printf("Delete '%s'? (y/N): ", sub.Name)
+	fmt.Scanln(&input)
+	if strings.ToLower(strings.TrimSpace(input)) == "y" {
+		cfg.RemoveSubscription(sub.Name)
+		cfg.Save()
+		fmt.Println("Deleted.")
+	}
+}
+
+func fetchSubOrFallback(sub *config.Subscription, cfg *config.Config) ([]*subscription.Node, error) {
+	data, err := subscription.Fetch(sub.URL)
+	if err == nil {
+		return subscription.Parse(data)
+	}
+	fmt.Printf("Direct fetch failed: %v\n", err)
+	fmt.Println("Attempting fallback via previous working node...")
+
+	fallbackSub := cfg.FindFallbackSub(sub.Name)
+	if fallbackSub == nil {
+		return nil, fmt.Errorf("no fallback subscription available")
+	}
+	fallbackNode := fallbackSub.FindNode(fallbackSub.LastNode)
+	if fallbackNode == nil {
+		return nil, fmt.Errorf("fallback node not found in cached data")
 	}
 
-	nodes, err := subscription.Parse(data)
+	socksPort, err := xrayproxy.GetFreePort()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing subscription: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("get free port: %w", err)
 	}
-	fmt.Printf("Found %d nodes\n", len(nodes))
-
-	groups := region.GroupByRegion(nodes)
-	selectedRegion := region.PromptRegion(groups)
-
-	var targetNodes []*subscription.Node
-	if selectedRegion == "" {
-		targetNodes = nodes
-	} else {
-		targetNodes = groups[selectedRegion]
-		fmt.Printf("\nSelected region: %s (%d nodes)\n", selectedRegion, len(targetNodes))
-	}
-
-	fmt.Println("\nTesting latency...")
-	bestNode, bestLatency, err := latency.FindBest(targetNodes)
+	httpPort, err := xrayproxy.GetFreePort()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("get free port: %w", err)
 	}
-	fmt.Printf("Best node: %s (%v)\n", bestNode.Name, bestLatency)
 
-	cfg.SelectedNode = bestNode.Name
-	config.Save(cfg)
-
-	httpPort := *portFlag
-	socksPort := httpPort + 1
-	fmt.Printf("Starting proxy on 127.0.0.1:%d (HTTP) and 127.0.0.1:%d (SOCKS5)...\n", httpPort, socksPort)
-
+	fmt.Printf("Starting fallback proxy with node '%s'...\n", fallbackNode.Name)
 	var srv ProxyServer
-	if bestNode.Protocol == "anytls" {
-		srv, err = singbox.Start(bestNode, socksPort, httpPort)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error starting sing-box proxy: %v\n", err)
-			os.Exit(1)
-		}
+	if fallbackNode.Protocol == "anytls" {
+		srv, err = singbox.Start(fallbackNode, socksPort, httpPort)
 	} else {
-		srv, err = xrayproxy.Start(bestNode, socksPort, httpPort)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error starting xray proxy: %v\n", err)
-			os.Exit(1)
-		}
+		srv, err = xrayproxy.Start(fallbackNode, socksPort, httpPort)
 	}
-	fmt.Printf("Proxy running at 127.0.0.1:%d (HTTP) and 127.0.0.1:%d (SOCKS5)\n", httpPort, socksPort)
+	if err != nil {
+		return nil, fmt.Errorf("start fallback proxy: %w", err)
+	}
+	defer srv.Stop()
+	time.Sleep(200 * time.Millisecond)
 
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	<-sigCh
-	fmt.Println("\nShutting down...")
-	srv.Stop()
-	fmt.Println("Done.")
+	proxyAddr := fmt.Sprintf("127.0.0.1:%d", socksPort)
+	data, err = subscription.FetchWithProxy(sub.URL, proxyAddr)
+	if err != nil {
+		return nil, fmt.Errorf("fallback fetch failed: %w", err)
+	}
+	return subscription.Parse(data)
 }
