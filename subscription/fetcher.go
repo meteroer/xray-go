@@ -1,20 +1,17 @@
 package subscription
 
 import (
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
+	"crypto/tls"
 	"golang.org/x/net/proxy"
 )
 
 func Fetch(url string) ([]byte, error) {
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Timeout: 30 * time.Second, Transport: transport}
+	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch subscription: %w", err)
