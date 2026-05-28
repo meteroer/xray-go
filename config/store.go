@@ -28,13 +28,16 @@ const (
 )
 
 type Config struct {
-	Subscriptions   []*Subscription `json:"subscriptions"`
-	LastUsedSub     string          `json:"last_used_subscription"`
-	SubscriptionURL string          `json:"subscription_url,omitempty"`
-	SelectedNode    string          `json:"selected_node,omitempty"`
-	RouteMode       RouteMode       `json:"route_mode,omitempty"`
-	Whitelist       []string        `json:"whitelist,omitempty"`
-	Blacklist       []string        `json:"blacklist,omitempty"`
+	Subscriptions      []*Subscription      `json:"subscriptions"`
+	LastUsedSub        string               `json:"last_used_subscription"`
+	LastUsedStandalone bool                 `json:"last_used_standalone"`
+	SubscriptionURL    string               `json:"subscription_url,omitempty"`
+	SelectedNode       string               `json:"selected_node,omitempty"`
+	RouteMode          RouteMode            `json:"route_mode,omitempty"`
+	Whitelist          []string             `json:"whitelist,omitempty"`
+	Blacklist          []string             `json:"blacklist,omitempty"`
+	StandaloneNodes    []*subscription.Node `json:"standalone_nodes,omitempty"`
+	LastStandaloneRegion string            `json:"last_standalone_region,omitempty"`
 }
 
 func configDir() (string, error) {
@@ -161,6 +164,27 @@ func (c *Config) FindSubscription(name string) *Subscription {
 	for _, s := range c.Subscriptions {
 		if s.Name == name {
 			return s
+		}
+	}
+	return nil
+}
+
+func (c *Config) AddStandaloneNode(node *subscription.Node) {
+	c.StandaloneNodes = append(c.StandaloneNodes, node)
+}
+
+func (c *Config) RemoveStandaloneNode(index int) bool {
+	if index < 0 || index >= len(c.StandaloneNodes) {
+		return false
+	}
+	c.StandaloneNodes = append(c.StandaloneNodes[:index], c.StandaloneNodes[index+1:]...)
+	return true
+}
+
+func (c *Config) FindStandaloneNode(name string) *subscription.Node {
+	for _, n := range c.StandaloneNodes {
+		if n.Name == name {
+			return n
 		}
 	}
 	return nil
