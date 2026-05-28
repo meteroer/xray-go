@@ -20,7 +20,7 @@ export function useWebSocket() {
         const data = JSON.parse(event.data)
         if (data.type === 'proxy_status') {
           const proxyStore = useProxyStore()
-          proxyStore.updateStatus(data.data)
+          proxyStore.updateStatus(data)
         }
       } catch {}
     }
