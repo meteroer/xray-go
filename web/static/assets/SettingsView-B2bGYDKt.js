@@ -1,1 +1,0 @@
-import{_ as t,e as n,a as r,k as s}from"./index-0GUkM1OF.js";const a={};function o(c,e){return s(),n("div",null,[...e[0]||(e[0]=[r("p",null,"Settings page placeholder",-1)])])}const i=t(a,[["render",o]]);export{i as default};
