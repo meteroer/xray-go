@@ -9,6 +9,7 @@
 - **地区选择**：解析订阅后列出所有地区，选择目标地区再测速
 - **自动测速**：并发 TCP 连接测试，选出延迟最低的节点
 - **订阅地址持久化**：首次输入后保存到 `~/.xray-go/config.json`，下次自动使用
+- **手动添加节点**：支持通过分享链接单独添加节点，无需订阅
 - 支持 Reality、XTLS、WebSocket、gRPC 等传输方式
 
 ## 支持协议
@@ -80,6 +81,21 @@ Proxy running at 0.0.0.0:16708 (HTTP) and 0.0.0.0:16709 (SOCKS5) [blacklist mode
 
 按 `Ctrl+C` 退出。
 
+### 手动添加节点
+
+除了通过订阅 URL 批量获取节点，还支持手动添加单个节点：
+
+```bash
+./xray-go
+```
+
+在主菜单中选择：
+- **Manual Nodes** — 查看/选择已添加的手动节点
+- **+ Add manual node** — 粘贴 `vmess://`、`vless://`、`trojan://`、`ss://` 或 `anytls://` 分享链接添加节点
+- **- Delete a manual node** — 删除手动节点
+
+手动节点与订阅节点完全独立，订阅更新不会影响手动节点。
+
 ### 无交互启动（后台运行）
 
 ```bash
@@ -146,8 +162,28 @@ export https_proxy=http://0.0.0.0:16708
 
 ```json
 {
-  "subscription_url": "https://example.com/sub",
-  "selected_node": "香港 02"
+  "subscriptions": [
+    {
+      "name": "default",
+      "url": "https://example.com/sub",
+      "nodes": [...],
+      "last_node": "香港 02"
+    }
+  ],
+  "standalone_nodes": [
+    {
+      "name": "手动节点 01",
+      "protocol": "vless",
+      "address": "example.com",
+      "port": 443,
+      "uuid": "uuid",
+      "network": "tcp",
+      "tls": true
+    }
+  ],
+  "last_used_subscription": "default",
+  "last_used_standalone": false,
+  "route_mode": "blacklist"
 }
 ```
 
@@ -156,7 +192,7 @@ export https_proxy=http://0.0.0.0:16708
 ```
 xray-go/
 ├── main.go            -- 入口，地区选择，启动代理
-├── config/store.go    -- 配置读写，订阅地址提示
+├── config/store.go    -- 配置读写，订阅和手动节点管理
 ├── region/region.go   -- 地区检测，分组，交互选择
 ├── subscription/
 │   ├── fetcher.go     -- HTTP 获取订阅内容
