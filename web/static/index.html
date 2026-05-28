@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>xray-go Web</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Auth Page -->
+  <div id="auth-page" class="auth-page hidden">
+    <div class="auth-box">
+      <h2 id="auth-title">Login</h2>
+      <form id="auth-form">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="username" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="password" required>
+        </div>
+        <div class="form-group hidden" id="confirm-password-group">
+          <label>Confirm Password</label>
+          <input type="password" id="confirm-password">
+        </div>
+        <button type="submit" class="btn btn-primary" id="auth-submit">Submit</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- App Page -->
+  <div id="app-page" class="container hidden">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h1>xray-go</h1>
+      </div>
+      <nav id="sidebar-nav"></nav>
+    </div>
+    <div class="main-content" id="main-content"></div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
