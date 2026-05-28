@@ -22,14 +22,10 @@ import (
 //go:embed static/*
 var staticFS embed.FS
 
-var (
-	staticSubFS      = mustSub(staticFS, "static")
-	staticFileServer = http.FileServer(http.FS(staticSubFS))
-)
+var staticSubFS = mustSub(staticFS, "static")
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
-	// Static files
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(mustSub(staticFS, "static")))))
+	// Static files served via SPA handler
 	mux.Handle("/", s.spaHandler())
 
 	// Auth APIs (no middleware)
@@ -70,10 +66,31 @@ func (s *Server) spaHandler() http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		if r.URL.Path == "/" {
-			r.URL.Path = "/index.html"
+
+		filePath := strings.TrimPrefix(r.URL.Path, "/")
+		filePath = strings.TrimPrefix(filePath, "static/")
+		if filePath == "" {
+			filePath = "index.html"
 		}
-		staticFileServer.ServeHTTP(w, r)
+
+		data, err := fs.ReadFile(staticSubFS, filePath)
+		if err != nil {
+			data, err = fs.ReadFile(staticSubFS, "index.html")
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+			filePath = "index.html"
+		}
+
+		contentType := "text/html; charset=utf-8"
+		if strings.HasSuffix(filePath, ".css") {
+			contentType = "text/css; charset=utf-8"
+		} else if strings.HasSuffix(filePath, ".js") {
+			contentType = "application/javascript; charset=utf-8"
+		}
+		w.Header().Set("Content-Type", contentType)
+		w.Write(data)
 	})
 }
 
