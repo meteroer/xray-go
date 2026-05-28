@@ -88,8 +88,16 @@ func (s *Server) handleProxyStart(w http.ResponseWriter, r *http.Request) {
 
 	var proxy ProxyServer
 	var err error
-	httpPort := 16708
-	socksPort := 16709
+
+	httpPort := s.cfg.HttpPort
+	socksPort := s.cfg.SocksPort
+
+	if httpPort == 0 {
+		httpPort = 16708
+	}
+	if socksPort == 0 {
+		socksPort = httpPort + 1
+	}
 
 	if node.Protocol == "anytls" {
 		proxy, err = singbox.Start(node, socksPort, httpPort, s.cfg.RouteMode, s.cfg.Whitelist, s.cfg.Blacklist)

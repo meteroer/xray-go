@@ -85,6 +85,67 @@ func (s *Server) handleBlacklist(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 }
 
+func (s *Server) handleProxyPorts(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		httpPort := s.cfg.HttpPort
+		socksPort := s.cfg.SocksPort
+		if httpPort == 0 {
+			httpPort = 16708
+		}
+		if socksPort == 0 {
+			socksPort = httpPort + 1
+		}
+		writeJSON(w, http.StatusOK, map[string]int{
+			"http_port":  httpPort,
+			"socks_port": socksPort,
+		})
+		return
+	}
+	if r.Method == http.MethodPut {
+		s.mu.RLock()
+		running := s.isRunning
+		s.mu.RUnlock()
+		if running {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "cannot change ports while proxy is running"})
+			return
+		}
+
+		var req struct {
+			HttpPort  int `json:"http_port"`
+			SocksPort int `json:"socks_port"`
+		}
+		if err := readJSON(r, &req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request"})
+			return
+		}
+		if req.HttpPort != 0 && (req.HttpPort < 1 || req.HttpPort > 65535) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "http_port must be 0 or 1-65535"})
+			return
+		}
+		if req.SocksPort != 0 && (req.SocksPort < 1 || req.SocksPort > 65535) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "socks_port must be 0 or 1-65535"})
+			return
+		}
+		if req.HttpPort != 0 && req.SocksPort != 0 && req.HttpPort == req.SocksPort {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "http_port and socks_port must be different"})
+			return
+		}
+
+		s.cfg.HttpPort = req.HttpPort
+		s.cfg.SocksPort = req.SocksPort
+		if err := s.cfg.Save(); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]int{
+			"http_port":  s.cfg.HttpPort,
+			"socks_port": s.cfg.SocksPort,
+		})
+		return
+	}
+	writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+}
+
 func (s *Server) handleDeleteStandaloneNode(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
