@@ -46,7 +46,7 @@ func Parse(data []byte) ([]*Node, error) {
 		if line == "" {
 			continue
 		}
-		node, err := parseLine(line)
+		node, err := ParseNode(line)
 		if err != nil {
 			continue
 		}
@@ -58,7 +58,7 @@ func Parse(data []byte) ([]*Node, error) {
 	return nodes, nil
 }
 
-func parseLine(line string) (*Node, error) {
+func ParseNode(line string) (*Node, error) {
 	if strings.HasPrefix(line, "vmess://") {
 		return parseVmess(line[8:])
 	}
