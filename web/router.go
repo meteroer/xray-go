@@ -38,6 +38,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/settings/route-mode", s.authMiddleware(s.handleRouteMode))
 	mux.HandleFunc("/api/settings/whitelist", s.authMiddleware(s.handleWhitelist))
 	mux.HandleFunc("/api/settings/blacklist", s.authMiddleware(s.handleBlacklist))
+	mux.HandleFunc("/api/settings/proxy-ports", s.authMiddleware(s.handleProxyPorts))
 }
 
 func mustSub(fsys embed.FS, dir string) fs.FS {

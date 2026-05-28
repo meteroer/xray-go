@@ -91,6 +91,7 @@ export default {
     routeMode: 'Route Mode',
     logout: 'Logout',
     logoutConfirm: 'Are you sure you want to logout?',
+    stopProxyFirst: 'Stop proxy before changing ports',
   },
   common: {
     confirm: 'Confirm',

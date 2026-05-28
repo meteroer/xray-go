@@ -28,16 +28,18 @@ const (
 )
 
 type Config struct {
-	Subscriptions      []*Subscription      `json:"subscriptions"`
-	LastUsedSub        string               `json:"last_used_subscription"`
-	LastUsedStandalone bool                 `json:"last_used_standalone"`
-	SubscriptionURL    string               `json:"subscription_url,omitempty"`
-	SelectedNode       string               `json:"selected_node,omitempty"`
-	RouteMode          RouteMode            `json:"route_mode,omitempty"`
-	Whitelist          []string             `json:"whitelist,omitempty"`
-	Blacklist          []string             `json:"blacklist,omitempty"`
-	StandaloneNodes    []*subscription.Node `json:"standalone_nodes,omitempty"`
-	LastStandaloneRegion string            `json:"last_standalone_region,omitempty"`
+	Subscriptions        []*Subscription      `json:"subscriptions"`
+	LastUsedSub          string               `json:"last_used_subscription"`
+	LastUsedStandalone   bool                 `json:"last_used_standalone"`
+	SubscriptionURL      string               `json:"subscription_url,omitempty"`
+	SelectedNode         string               `json:"selected_node,omitempty"`
+	RouteMode            RouteMode            `json:"route_mode,omitempty"`
+	Whitelist            []string             `json:"whitelist,omitempty"`
+	Blacklist            []string             `json:"blacklist,omitempty"`
+	StandaloneNodes      []*subscription.Node `json:"standalone_nodes,omitempty"`
+	LastStandaloneRegion string               `json:"last_standalone_region,omitempty"`
+	HttpPort             int                  `json:"http_port,omitempty"`
+	SocksPort            int                  `json:"socks_port,omitempty"`
 }
 
 func ConfigDir() (string, error) {

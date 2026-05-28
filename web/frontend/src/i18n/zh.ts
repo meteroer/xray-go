@@ -91,6 +91,7 @@ export default {
     routeMode: '路由模式',
     logout: '退出登录',
     logoutConfirm: '确定退出登录？',
+    stopProxyFirst: '请先停止代理再修改端口',
   },
   common: {
     confirm: '确认',

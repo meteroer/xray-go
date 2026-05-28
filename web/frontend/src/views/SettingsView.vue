@@ -24,6 +24,50 @@
           </el-button>
         </el-form-item>
 
+        <el-divider />
+
+        <el-form-item :label="t('settings.httpPort')">
+          <el-input-number
+            v-model="httpPort"
+            :min="0"
+            :max="65535"
+            :step="1"
+            :disabled="proxyStore.status.running"
+            :placeholder="portPlaceholder"
+            controls-position="right"
+            class="port-input"
+          />
+        </el-form-item>
+
+        <el-form-item :label="t('settings.socksPort')">
+          <el-input-number
+            v-model="socksPort"
+            :min="0"
+            :max="65535"
+            :step="1"
+            :disabled="proxyStore.status.running"
+            :placeholder="portPlaceholder"
+            controls-position="right"
+            class="port-input"
+          />
+        </el-form-item>
+
+        <el-form-item>
+          <el-button
+            type="primary"
+            size="small"
+            :disabled="proxyStore.status.running"
+            @click="savePorts"
+          >
+            {{ t('settings.save') }}
+          </el-button>
+          <span v-if="proxyStore.status.running" class="port-hint">
+            {{ t('settings.stopProxyFirst') }}
+          </span>
+        </el-form-item>
+
+        <el-divider />
+
         <el-form-item>
           <el-button type="danger" class="logout-btn" @click="handleLogout">
             {{ t('settings.logout') }}
@@ -40,14 +84,19 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
+import { useProxyStore } from '@/stores/proxy'
 import { useApi } from '@/composables/useApi'
 
 const router = useRouter()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+const proxyStore = useProxyStore()
 const api = useApi()
 
 const routeMode = ref('global')
+const httpPort = ref(0)
+const socksPort = ref(0)
+const portPlaceholder = '0 = auto'
 
 const toggleLang = (val: boolean) => {
   const newLang = val ? 'zh' : 'en'
@@ -58,6 +107,18 @@ const toggleLang = (val: boolean) => {
 const saveRouteMode = async () => {
   try {
     await api.put('/api/settings/route-mode', { route_mode: routeMode.value })
+    ElMessage.success(t('common.success'))
+  } catch (e: any) {
+    ElMessage.error(e.message || t('common.error'))
+  }
+}
+
+const savePorts = async () => {
+  try {
+    await api.put('/api/settings/proxy-ports', {
+      http_port: httpPort.value,
+      socks_port: socksPort.value,
+    })
     ElMessage.success(t('common.success'))
   } catch (e: any) {
     ElMessage.error(e.message || t('common.error'))
@@ -79,6 +140,11 @@ onMounted(async () => {
     const res = await api.get('/api/settings/route-mode')
     routeMode.value = res.route_mode || res.mode || 'global'
   } catch {}
+  try {
+    const res = await api.get('/api/settings/proxy-ports')
+    httpPort.value = res.http_port || 0
+    socksPort.value = res.socks_port || 0
+  } catch {}
 })
 </script>
 
@@ -93,6 +159,14 @@ onMounted(async () => {
 .save-mode-btn {
   margin-left: 12px;
   font-size: 12px;
+}
+.port-input {
+  width: 180px;
+}
+.port-hint {
+  margin-left: 12px;
+  font-size: 12px;
+  color: var(--el-color-warning);
 }
 .logout-btn {
   font-size: 13px;

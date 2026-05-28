@@ -44,6 +44,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	if *portFlag != 16708 {
+		cfg.HttpPort = *portFlag
+		cfg.SocksPort = *portFlag + 1
+		cfg.Save()
+	}
+
 	// "start" subcommand: non-interactive, use last saved config
 	args := flag.Args()
 	if len(args) > 0 && args[0] == "start" {
@@ -125,13 +131,20 @@ func main() {
 		cfg.RouteMode = promptRouteMode(cfg.RouteMode)
 		cfg.Save()
 
-		socksPort := *portFlag + 1
-		runProxy(bestNode, socksPort, *portFlag, cfg)
+		httpPort := cfg.HttpPort
+		socksPort := cfg.SocksPort
+		if httpPort == 0 {
+			httpPort = *portFlag
+		}
+		if socksPort == 0 {
+			socksPort = httpPort + 1
+		}
+		runProxy(bestNode, socksPort, httpPort, cfg)
 		return
 	}
 }
 
-func startMode(cfg *config.Config, httpPort int, updateFlag bool) {
+func startMode(cfg *config.Config, httpPortFlag int, updateFlag bool) {
 	if len(cfg.Subscriptions) == 0 && len(cfg.StandaloneNodes) == 0 {
 		fmt.Fprintln(os.Stderr, "No subscriptions or nodes configured. Run without 'start' first.")
 		os.Exit(1)
@@ -163,7 +176,14 @@ func startMode(cfg *config.Config, httpPort int, updateFlag bool) {
 		}
 		fmt.Printf("Best node: %s (%v)\n", bestNode.Name, bestLatency)
 
-		socksPort := httpPort + 1
+		httpPort := cfg.HttpPort
+		socksPort := cfg.SocksPort
+		if httpPort == 0 {
+			httpPort = httpPortFlag
+		}
+		if socksPort == 0 {
+			socksPort = httpPort + 1
+		}
 		runProxy(bestNode, socksPort, httpPort, cfg)
 		return
 	}
@@ -219,7 +239,14 @@ func startMode(cfg *config.Config, httpPort int, updateFlag bool) {
 	sub.LastNode = bestNode.Name
 	cfg.Save()
 
-	socksPort := httpPort + 1
+	httpPort := cfg.HttpPort
+	socksPort := cfg.SocksPort
+	if httpPort == 0 {
+		httpPort = httpPortFlag
+	}
+	if socksPort == 0 {
+		socksPort = httpPort + 1
+	}
 	runProxy(bestNode, socksPort, httpPort, cfg)
 }
 
@@ -571,8 +598,14 @@ func promptStandaloneMenu(cfg *config.Config) {
 			cfg.RouteMode = promptRouteMode(cfg.RouteMode)
 			cfg.Save()
 
-			socksPort := 16709
-			httpPort := 16708
+			httpPort := cfg.HttpPort
+			socksPort := cfg.SocksPort
+			if httpPort == 0 {
+				httpPort = 16708
+			}
+			if socksPort == 0 {
+				socksPort = httpPort + 1
+			}
 			runProxy(bestNode, socksPort, httpPort, cfg)
 			return
 		}
