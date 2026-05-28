@@ -93,6 +93,17 @@ const I18N = {
   }
 };
 
+function escapeHtml(text) {
+  if (text == null) return '';
+  const div = document.createElement('div');
+  div.textContent = String(text);
+  return div.innerHTML.replace(/'/g, '&#39;');
+}
+
+function safeId(text) {
+  return 'id-' + String(text).replace(/[^a-zA-Z0-9_-]/g, '-');
+}
+
 class App {
   constructor() {
     this.lang = localStorage.getItem('lang') || 'zh';
@@ -108,16 +119,20 @@ class App {
   }
 
   async init() {
-    // Check auth status
-    const statusRes = await fetch('/api/auth/status');
-    const status = await statusRes.json();
-    
-    if (!status.initialized) {
-      this.showAuth('register');
-    } else if (!this.token) {
-      this.showAuth('login');
-    } else {
-      this.showApp();
+    try {
+      const statusRes = await fetch('/api/auth/status');
+      const status = await statusRes.json();
+      
+      if (!status.initialized) {
+        this.showAuth('register');
+      } else if (!this.token) {
+        this.showAuth('login');
+      } else {
+        this.showApp();
+      }
+    } catch (err) {
+      console.error('Failed to check auth status:', err);
+      alert(this.t('error'));
     }
   }
 
@@ -144,19 +159,24 @@ class App {
       }
       
       const endpoint = mode === 'register' ? '/api/auth/init' : '/api/auth/login';
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      
-      const data = await res.json();
-      if (res.ok) {
-        this.token = data.token;
-        localStorage.setItem('token', this.token);
-        this.showApp();
-      } else {
-        alert(data.error || this.t('error'));
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+          this.token = data.token;
+          localStorage.setItem('token', this.token);
+          this.showApp();
+        } else {
+          alert(data.error || this.t('error'));
+        }
+      } catch (err) {
+        console.error('Auth request failed:', err);
+        alert(this.t('error'));
       }
     };
   }
@@ -172,17 +192,26 @@ class App {
   }
 
   async loadConfig() {
-    const res = await fetch('/api/config', {
-      headers: { 'Authorization': `Bearer ${this.token}` }
-    });
-    this.config = await res.json();
+    try {
+      const res = await fetch('/api/config', {
+        headers: { 'Authorization': `Bearer ${this.token}` }
+      });
+      this.config = await res.json();
+    } catch (err) {
+      console.error('Failed to load config:', err);
+      alert(this.t('error'));
+    }
   }
 
   async loadProxyStatus() {
-    const res = await fetch('/api/proxy/status', {
-      headers: { 'Authorization': `Bearer ${this.token}` }
-    });
-    this.proxyStatus = await res.json();
+    try {
+      const res = await fetch('/api/proxy/status', {
+        headers: { 'Authorization': `Bearer ${this.token}` }
+      });
+      this.proxyStatus = await res.json();
+    } catch (err) {
+      console.error('Failed to load proxy status:', err);
+    }
   }
 
   startStatusPolling() {
@@ -257,19 +286,19 @@ class App {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
           <div>
             <div style="font-size:12px;color:#666;margin-bottom:4px;">${this.t('currentNode')}</div>
-            <div id="current-node" style="font-weight:600;">${this.proxyStatus?.node || '-'}</div>
+            <div id="current-node" style="font-weight:600;">${escapeHtml(this.proxyStatus?.node) || '-'}</div>
           </div>
           <div>
             <div style="font-size:12px;color:#666;margin-bottom:4px;">${this.t('routeMode')}</div>
-            <div style="font-weight:600;">${this.proxyStatus?.route_mode || '-'}</div>
+            <div style="font-weight:600;">${escapeHtml(this.proxyStatus?.route_mode) || '-'}</div>
           </div>
           <div>
             <div style="font-size:12px;color:#666;margin-bottom:4px;">${this.t('httpPort')}</div>
-            <div style="font-weight:600;">${this.proxyStatus?.http_port || '-'}</div>
+            <div style="font-weight:600;">${escapeHtml(this.proxyStatus?.http_port) || '-'}</div>
           </div>
           <div>
             <div style="font-size:12px;color:#666;margin-bottom:4px;">${this.t('socksPort')}</div>
-            <div style="font-weight:600;">${this.proxyStatus?.socks_port || '-'}</div>
+            <div style="font-weight:600;">${escapeHtml(this.proxyStatus?.socks_port) || '-'}</div>
           </div>
         </div>
         <div style="display:flex;gap:10px;">
@@ -302,13 +331,13 @@ class App {
             ${subs.length === 0 ? `<tr><td colspan="5" style="text-align:center;color:#999;">${this.t('noData')}</td></tr>` : ''}
             ${subs.map(sub => `
               <tr>
-                <td>${sub.name}</td>
-                <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;">${sub.url}</td>
+                <td>${escapeHtml(sub.name)}</td>
+                <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(sub.url)}</td>
                 <td>${(sub.nodes || []).length}</td>
                 <td>${sub.last_fetched ? new Date(sub.last_fetched).toLocaleString() : '-'}</td>
                 <td>
-                  <button class="btn btn-secondary" style="padding:4px 8px;font-size:12px;" onclick="app.refreshSub('${sub.name}')">${this.t('refresh')}</button>
-                  <button class="btn btn-danger" style="padding:4px 8px;font-size:12px;" onclick="app.deleteSub('${sub.name}')">${this.t('delete')}</button>
+                  <button class="btn btn-secondary" style="padding:4px 8px;font-size:12px;" onclick="app.refreshSub('${escapeHtml(sub.name)}')">${this.t('refresh')}</button>
+                  <button class="btn btn-danger" style="padding:4px 8px;font-size:12px;" onclick="app.deleteSub('${escapeHtml(sub.name)}')">${this.t('delete')}</button>
                 </td>
               </tr>
             `).join('')}
@@ -341,12 +370,12 @@ class App {
           ${allNodes.map(node => `
             <div class="node-item">
               <div>
-                <div style="font-weight:600;">${node.name}</div>
-                <div style="font-size:12px;color:#666;">${node.address}:${node.port} [${node.protocol}]</div>
+                <div style="font-weight:600;">${escapeHtml(node.name)}</div>
+                <div style="font-size:12px;color:#666;">${escapeHtml(node.address)}:${escapeHtml(node.port)} [${escapeHtml(node.protocol)}]</div>
               </div>
               <div style="display:flex;align-items:center;gap:10px;">
-                <span class="latency-good" id="latency-${node.name}"></span>
-                <button class="btn btn-success" style="padding:4px 12px;font-size:12px;" onclick="app.selectNode('${node.name}')">${this.t('select')}</button>
+                <span class="latency-good" id="${safeId(node.name)}"></span>
+                <button class="btn btn-success" style="padding:4px 12px;font-size:12px;" onclick="app.selectNode('${escapeHtml(node.name)}')">${this.t('select')}</button>
               </div>
             </div>
           `).join('')}
@@ -378,117 +407,95 @@ class App {
   }
 
   async startProxy() {
-    const res = await fetch('/api/proxy/start', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' }
-    });
-    const data = await res.json();
-    if (res.ok) {
-      await this.loadProxyStatus();
-      this.renderPage();
-      alert(this.t('success'));
-    } else {
-      alert(data.error || this.t('error'));
+    try {
+      const res = await fetch('/api/proxy/start', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await this.loadProxyStatus();
+        this.renderPage();
+        alert(this.t('success'));
+      } else {
+        alert(data.error || this.t('error'));
+      }
+    } catch (err) {
+      console.error('Failed to start proxy:', err);
+      alert(this.t('error'));
     }
   }
 
   async stopProxy() {
-    const res = await fetch('/api/proxy/stop', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${this.token}` }
-    });
-    const data = await res.json();
-    if (res.ok) {
-      await this.loadProxyStatus();
-      this.renderPage();
-    } else {
-      alert(data.error || this.t('error'));
+    try {
+      const res = await fetch('/api/proxy/stop', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${this.token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await this.loadProxyStatus();
+        this.renderPage();
+      } else {
+        alert(data.error || this.t('error'));
+      }
+    } catch (err) {
+      console.error('Failed to stop proxy:', err);
+      alert(this.t('error'));
     }
   }
 
   async testAllLatency() {
-    const res = await fetch('/api/proxy/test', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${this.token}` }
-    });
-    const data = await res.json();
-    if (res.ok) {
-      data.forEach(item => {
-        const el = document.getElementById(`latency-${item.name}`);
-        if (el) {
-          el.textContent = item.error ? '×' : `${item.latency}ms`;
-          el.className = item.error ? 'latency-bad' : 'latency-good';
-        }
+    try {
+      const res = await fetch('/api/proxy/test', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${this.token}` }
       });
+      const data = await res.json();
+      if (res.ok) {
+        data.forEach(item => {
+          const el = document.getElementById(safeId(item.name));
+          if (el) {
+            el.textContent = item.error ? '×' : `${item.latency}ms`;
+            el.className = item.error ? 'latency-bad' : 'latency-good';
+          }
+        });
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.error || this.t('error'));
+      }
+    } catch (err) {
+      console.error('Latency test failed:', err);
+      alert(this.t('error'));
     }
   }
 
   async selectNode(nodeName) {
-    const res = await fetch('/api/proxy/start', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ node_name: nodeName })
-    });
-    const data = await res.json();
-    if (res.ok) {
-      await this.loadProxyStatus();
-      this.navigate('overview');
-    } else {
-      alert(data.error || this.t('error'));
+    try {
+      const res = await fetch('/api/proxy/start', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ node_name: nodeName })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await this.loadProxyStatus();
+        this.navigate('overview');
+      } else {
+        alert(data.error || this.t('error'));
+      }
+    } catch (err) {
+      console.error('Failed to select node:', err);
+      alert(this.t('error'));
     }
   }
 
   async refreshSub(name) {
-    const res = await fetch(`/api/subscriptions/${name}/refresh`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${this.token}` }
-    });
-    if (res.ok) {
-      await this.loadConfig();
-      this.renderPage();
-    } else {
-      const data = await res.json();
-      alert(data.error || this.t('error'));
-    }
-  }
-
-  async deleteSub(name) {
-    if (!confirm('Delete this subscription?')) return;
-    const res = await fetch(`/api/subscriptions/${name}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${this.token}` }
-    });
-    if (res.ok) {
-      await this.loadConfig();
-      this.renderPage();
-    }
-  }
-
-  showAddSubModal() {
-    const name = prompt('Subscription name:');
-    if (!name) return;
-    const url = prompt('Subscription URL:');
-    if (!url) return;
-    fetch('/api/subscriptions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, url })
-    }).then(async res => {
-      if (res.ok) {
-        await this.loadConfig();
-        this.renderPage();
-      }
-    });
-  }
-
-  showAddNodeModal() {
-    const link = prompt('Node link (vmess:// / vless:// / trojan:// / ss:// / anytls://):');
-    if (!link) return;
-    fetch('/api/nodes', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ link })
-    }).then(async res => {
+    try {
+      const res = await fetch(`/api/subscriptions/${encodeURIComponent(name)}/refresh`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${this.token}` }
+      });
       if (res.ok) {
         await this.loadConfig();
         this.renderPage();
@@ -496,7 +503,76 @@ class App {
         const data = await res.json();
         alert(data.error || this.t('error'));
       }
-    });
+    } catch (err) {
+      console.error('Failed to refresh subscription:', err);
+      alert(this.t('error'));
+    }
+  }
+
+  async deleteSub(name) {
+    if (!confirm('Delete this subscription?')) return;
+    try {
+      const res = await fetch(`/api/subscriptions/${encodeURIComponent(name)}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${this.token}` }
+      });
+      if (res.ok) {
+        await this.loadConfig();
+        this.renderPage();
+      } else {
+        const data = await res.json();
+        alert(data.error || this.t('error'));
+      }
+    } catch (err) {
+      console.error('Failed to delete subscription:', err);
+      alert(this.t('error'));
+    }
+  }
+
+  async showAddSubModal() {
+    const name = prompt('Subscription name:');
+    if (!name) return;
+    const url = prompt('Subscription URL:');
+    if (!url) return;
+    try {
+      const res = await fetch('/api/subscriptions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, url })
+      });
+      if (res.ok) {
+        await this.loadConfig();
+        this.renderPage();
+      } else {
+        const data = await res.json();
+        alert(data.error || this.t('error'));
+      }
+    } catch (err) {
+      console.error('Failed to add subscription:', err);
+      alert(this.t('error'));
+    }
+  }
+
+  async showAddNodeModal() {
+    const link = prompt('Node link (vmess:// / vless:// / trojan:// / ss:// / anytls://):');
+    if (!link) return;
+    try {
+      const res = await fetch('/api/nodes', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ link })
+      });
+      if (res.ok) {
+        await this.loadConfig();
+        this.renderPage();
+      } else {
+        const data = await res.json();
+        alert(data.error || this.t('error'));
+      }
+    } catch (err) {
+      console.error('Failed to add node:', err);
+      alert(this.t('error'));
+    }
   }
 
   changeRouteMode(mode) {
