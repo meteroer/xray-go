@@ -4,12 +4,18 @@ import (
 	"embed"
 	"encoding/json"
 	"io/fs"
+	"log"
 	"net/http"
 	"strings"
 )
 
 //go:embed static/*
 var staticFS embed.FS
+
+var (
+	staticSubFS      = mustSub(staticFS, "static")
+	staticFileServer = http.FileServer(http.FS(staticSubFS))
+)
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
 	// Static files
@@ -54,22 +60,19 @@ func (s *Server) spaHandler() http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		staticSub, err := fs.Sub(staticFS, "static")
-		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
 		if r.URL.Path == "/" {
 			r.URL.Path = "/index.html"
 		}
-		http.FileServer(http.FS(staticSub)).ServeHTTP(w, r)
+		staticFileServer.ServeHTTP(w, r)
 	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Printf("json encode error: %v", err)
+	}
 }
 
 // Auth handlers

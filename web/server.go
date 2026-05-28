@@ -43,8 +43,11 @@ func NewServer(addr string, cfg *config.Config) (*Server, error) {
 	s.registerRoutes(mux)
 
 	s.httpServer = &http.Server{
-		Addr:    addr,
-		Handler: mux,
+		Addr:         addr,
+		Handler:      mux,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
 	return s, nil
@@ -59,7 +62,9 @@ func (s *Server) Start() error {
 // Stop shuts down the server
 func (s *Server) Stop() error {
 	if s.proxy != nil {
-		s.proxy.Stop()
+		if err := s.proxy.Stop(); err != nil {
+			return fmt.Errorf("proxy stop: %w", err)
+		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
