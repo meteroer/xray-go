@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"xray-go/region"
 	"xray-go/singbox"
 	"xray-go/subscription"
+	"xray-go/web"
 	"xray-go/xrayproxy"
 )
 
@@ -37,6 +39,12 @@ func main() {
 	args := flag.Args()
 	if len(args) > 0 && args[0] == "start" {
 		startMode(cfg, *portFlag, *updateFlag)
+		return
+	}
+
+	// "web" subcommand: start web UI
+	if len(args) > 0 && args[0] == "web" {
+		webMode(cfg)
 		return
 	}
 
@@ -204,6 +212,33 @@ func startMode(cfg *config.Config, httpPort int, updateFlag bool) {
 
 	socksPort := httpPort + 1
 	runProxy(bestNode, socksPort, httpPort, cfg)
+}
+
+func webMode(cfg *config.Config) {
+	addr := "0.0.0.0:18700"
+	srv, err := web.NewServer(addr, cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error starting web server: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Starting web UI on %s...\n", addr)
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		if err := srv.Start(); err != nil && err != http.ErrServerClosed {
+			fmt.Fprintf(os.Stderr, "Web server error: %v\n", err)
+		}
+	}()
+
+	<-sigCh
+	fmt.Println("\nShutting down web server...")
+	if err := srv.Stop(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error stopping server: %v\n", err)
+	}
+	fmt.Println("Done.")
 }
 
 func runProxy(node *subscription.Node, socksPort, httpPort int, cfg *config.Config) {
