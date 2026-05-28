@@ -192,24 +192,61 @@ func runProxy(node *subscription.Node, socksPort, httpPort int, cfg *config.Conf
 }
 
 func selectSubscription(cfg *config.Config) *config.Subscription {
-	if len(cfg.Subscriptions) == 0 {
-		fmt.Println("No saved subscriptions.")
-		return promptAddSub(cfg)
-	}
-
 	for {
-		fmt.Println("\nSaved subscriptions:")
-		for i, s := range cfg.Subscriptions {
-			cached := len(s.Nodes)
+		itemNum := 1
+		optionMap := make(map[int]func() *config.Subscription)
+
+		if len(cfg.Subscriptions) > 0 {
+			fmt.Println("\nSaved subscriptions:")
+			for i, s := range cfg.Subscriptions {
+				cached := len(s.Nodes)
+				marker := " "
+				if s.Name == cfg.LastUsedSub {
+					marker = "*"
+				}
+				fmt.Printf("  %2d. %s%s (%s) [%d cached]\n", itemNum, marker, s.Name, s.URL, cached)
+				idx := i
+				optionMap[itemNum] = func() *config.Subscription {
+					cfg.LastUsedStandalone = false
+					return cfg.Subscriptions[idx]
+				}
+				itemNum++
+			}
+		}
+
+		if len(cfg.StandaloneNodes) > 0 {
 			marker := " "
-			if s.Name == cfg.LastUsedSub {
+			if cfg.LastUsedSub == "" && cfg.LastUsedStandalone {
 				marker = "*"
 			}
-			fmt.Printf("  %2d. %s%s (%s) [%d cached]\n", i+1, marker, s.Name, s.URL, cached)
+			fmt.Printf("\n  %2d. %sManual Nodes (%d nodes)\n", itemNum, marker, len(cfg.StandaloneNodes))
+			optionMap[itemNum] = func() *config.Subscription {
+				cfg.LastUsedStandalone = true
+				cfg.LastUsedSub = ""
+				promptStandaloneMenu(cfg)
+				return nil
+			}
+			itemNum++
 		}
-		fmt.Printf("  %2d. + Add new subscription\n", len(cfg.Subscriptions)+1)
-		fmt.Printf("  %2d. - Delete a subscription\n", len(cfg.Subscriptions)+2)
-		fmt.Printf("  %2d. Exit\n", len(cfg.Subscriptions)+3)
+
+		addSubOption := itemNum
+		fmt.Printf("\n  %2d. + Add new subscription\n", itemNum)
+		itemNum++
+
+		addNodeOption := itemNum
+		fmt.Printf("  %2d. + Add manual node\n", itemNum)
+		itemNum++
+
+		delSubOption := itemNum
+		fmt.Printf("  %2d. - Delete a subscription\n", itemNum)
+		itemNum++
+
+		delNodeOption := itemNum
+		fmt.Printf("  %2d. - Delete a manual node\n", itemNum)
+		itemNum++
+
+		exitOption := itemNum
+		fmt.Printf("  %2d. Exit\n", itemNum)
 
 		fmt.Print("\nSelect option: ")
 		var input string
@@ -217,21 +254,35 @@ func selectSubscription(cfg *config.Config) *config.Subscription {
 		choice := 0
 		fmt.Sscanf(input, "%d", &choice)
 
-		if choice >= 1 && choice <= len(cfg.Subscriptions) {
-			return cfg.Subscriptions[choice-1]
+		if action, ok := optionMap[choice]; ok {
+			result := action()
+			if result != nil {
+				return result
+			}
+			continue
 		}
-		if choice == len(cfg.Subscriptions)+1 {
+
+		if choice == addSubOption {
 			sub := promptAddSub(cfg)
 			if sub != nil {
+				cfg.LastUsedStandalone = false
 				return sub
 			}
 			continue
 		}
-		if choice == len(cfg.Subscriptions)+2 {
+		if choice == addNodeOption {
+			promptAddStandaloneNode(cfg)
+			continue
+		}
+		if choice == delSubOption {
 			promptDeleteSub(cfg)
 			continue
 		}
-		if choice == len(cfg.Subscriptions)+3 {
+		if choice == delNodeOption {
+			promptDeleteStandaloneNode(cfg)
+			continue
+		}
+		if choice == exitOption {
 			return nil
 		}
 		fmt.Println("Invalid choice")
@@ -375,5 +426,127 @@ func promptRouteMode(current config.RouteMode) config.RouteMode {
 			return current
 		}
 		return config.RouteModeGlobal
+	}
+}
+
+func promptStandaloneMenu(cfg *config.Config) {
+	for {
+		fmt.Println("\nManual Nodes:")
+		for i, n := range cfg.StandaloneNodes {
+			fmt.Printf("  %2d. %s [%s]\n", i+1, n.Name, n.Protocol)
+		}
+		fmt.Printf("\n  %2d. + Add new node\n", len(cfg.StandaloneNodes)+1)
+		fmt.Printf("  %2d. - Delete a node\n", len(cfg.StandaloneNodes)+2)
+		fmt.Printf("  %2d. Back\n", len(cfg.StandaloneNodes)+3)
+
+		fmt.Print("\nSelect option: ")
+		var input string
+		fmt.Scanln(&input)
+		choice := 0
+		fmt.Sscanf(input, "%d", &choice)
+
+		if choice >= 1 && choice <= len(cfg.StandaloneNodes) {
+			cfg.LastUsedStandalone = true
+			cfg.LastUsedSub = ""
+			cfg.Save()
+
+			allNodes := cfg.StandaloneNodes
+			groups := region.GroupByRegion(allNodes)
+			selectedRegion := region.PromptRegion(groups)
+			cfg.LastStandaloneRegion = selectedRegion
+			cfg.Save()
+
+			var targetNodes []*subscription.Node
+			if selectedRegion == "" {
+				targetNodes = allNodes
+			} else {
+				targetNodes = groups[selectedRegion]
+				fmt.Printf("\nSelected region: %s (%d nodes)\n", selectedRegion, len(targetNodes))
+			}
+
+			fmt.Println("\nTesting latency...")
+			bestNode, bestLatency, err := latency.FindBest(targetNodes)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				continue
+			}
+			fmt.Printf("Best node: %s (%v)\n", bestNode.Name, bestLatency)
+
+			cfg.RouteMode = promptRouteMode(cfg.RouteMode)
+			cfg.Save()
+
+			socksPort := 16709
+			httpPort := 16708
+			runProxy(bestNode, socksPort, httpPort, cfg)
+			return
+		}
+		if choice == len(cfg.StandaloneNodes)+1 {
+			promptAddStandaloneNode(cfg)
+			continue
+		}
+		if choice == len(cfg.StandaloneNodes)+2 {
+			promptDeleteStandaloneNode(cfg)
+			continue
+		}
+		if choice == len(cfg.StandaloneNodes)+3 {
+			return
+		}
+		fmt.Println("Invalid choice")
+	}
+}
+
+func promptAddStandaloneNode(cfg *config.Config) {
+	fmt.Print("Enter node share link (vmess:// / vless:// / trojan:// / ss:// / anytls://): ")
+	var link string
+	fmt.Scanln(&link)
+	link = strings.TrimSpace(link)
+	if link == "" {
+		fmt.Println("Link cannot be empty")
+		return
+	}
+	node, err := subscription.ParseNode(link)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to parse node: %v\n", err)
+		return
+	}
+	if node.Name == "" {
+		fmt.Print("Enter node name: ")
+		var name string
+		fmt.Scanln(&name)
+		node.Name = strings.TrimSpace(name)
+		if node.Name == "" {
+			node.Name = fmt.Sprintf("node-%d", time.Now().Unix())
+		}
+	}
+	cfg.AddStandaloneNode(node)
+	cfg.Save()
+	fmt.Printf("Added node '%s' [%s]\n", node.Name, node.Protocol)
+}
+
+func promptDeleteStandaloneNode(cfg *config.Config) {
+	if len(cfg.StandaloneNodes) == 0 {
+		fmt.Println("No manual nodes to delete.")
+		return
+	}
+	fmt.Println("\nSelect node to delete:")
+	for i, n := range cfg.StandaloneNodes {
+		fmt.Printf("  %2d. %s [%s]\n", i+1, n.Name, n.Protocol)
+	}
+	fmt.Print("Select: ")
+	var input string
+	fmt.Scanln(&input)
+	choice := 0
+	fmt.Sscanf(input, "%d", &choice)
+	if choice < 1 || choice > len(cfg.StandaloneNodes) {
+		fmt.Println("Invalid choice")
+		return
+	}
+	node := cfg.StandaloneNodes[choice-1]
+	fmt.Printf("Delete '%s'? (y/N): ", node.Name)
+	fmt.Scanln(&input)
+	if strings.ToLower(strings.TrimSpace(input)) == "y" {
+		cfg.RemoveStandaloneNode(choice - 1)
+		cfg.Save()
+		fmt.Println("Deleted.")
 	}
 }
