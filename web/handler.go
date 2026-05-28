@@ -3,6 +3,8 @@ package web
 import (
 	"embed"
 	"encoding/json"
+	"errors"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -309,6 +311,10 @@ func (s *Server) handleProxyStart(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 		return
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.isRunning {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "proxy already running"})
 		return
@@ -320,20 +326,26 @@ func (s *Server) handleProxyStart(w http.ResponseWriter, r *http.Request) {
 		RouteMode config.RouteMode `json:"route_mode,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		if err.Error() != "EOF" {
+		if !errors.Is(err, io.EOF) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request"})
 			return
 		}
 	}
 
 	if req.RouteMode != "" {
-		s.cfg.RouteMode = req.RouteMode
+		switch req.RouteMode {
+		case config.RouteModeGlobal, config.RouteModeWhitelist, config.RouteModeBlacklist:
+			s.cfg.RouteMode = req.RouteMode
+		default:
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid route_mode"})
+			return
+		}
 	}
 
 	var node *subscription.Node
+	allNodes := s.getAllNodes()
 
 	if req.NodeName != "" {
-		allNodes := s.getAllNodes()
 		for _, n := range allNodes {
 			if n.Name == req.NodeName {
 				node = n
@@ -347,10 +359,10 @@ func (s *Server) handleProxyStart(w http.ResponseWriter, r *http.Request) {
 	} else {
 		var targetNodes []*subscription.Node
 		if req.Region != "" {
-			groups := region.GroupByRegion(s.getAllNodes())
+			groups := region.GroupByRegion(allNodes)
 			targetNodes = groups[req.Region]
 		} else {
-			targetNodes = s.getAllNodes()
+			targetNodes = allNodes
 		}
 		if len(targetNodes) == 0 {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no nodes available"})
@@ -402,6 +414,10 @@ func (s *Server) handleProxyStop(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 		return
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.proxy != nil {
 		if err := s.proxy.Stop(); err != nil {
 			log.Printf("proxy stop error: %v", err)
@@ -422,6 +438,10 @@ func (s *Server) handleProxyStatus(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 		return
 	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"running":    s.isRunning,
 		"http_port":  s.httpPort,
@@ -441,7 +461,7 @@ func (s *Server) handleProxyTest(w http.ResponseWriter, r *http.Request) {
 		Region string `json:"region,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		if err.Error() != "EOF" {
+		if !errors.Is(err, io.EOF) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request"})
 			return
 		}

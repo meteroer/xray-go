@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"xray-go/config"
@@ -25,6 +26,7 @@ type Server struct {
 	isRunning   bool
 	httpPort    int
 	socksPort   int
+	mu          sync.RWMutex
 }
 
 // NewServer creates a new web server
