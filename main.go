@@ -115,14 +115,53 @@ func main() {
 }
 
 func startMode(cfg *config.Config, httpPort int, updateFlag bool) {
-	if len(cfg.Subscriptions) == 0 {
-		fmt.Fprintln(os.Stderr, "No subscriptions configured. Run without 'start' first.")
+	if len(cfg.Subscriptions) == 0 && len(cfg.StandaloneNodes) == 0 {
+		fmt.Fprintln(os.Stderr, "No subscriptions or nodes configured. Run without 'start' first.")
 		os.Exit(1)
 	}
+
+	// 如果上次使用的是独立节点
+	if cfg.LastUsedStandalone && cfg.LastUsedSub == "" {
+		if len(cfg.StandaloneNodes) == 0 {
+			fmt.Fprintln(os.Stderr, "No standalone nodes available.")
+			os.Exit(1)
+		}
+
+		var targetNodes []*subscription.Node
+		if cfg.LastStandaloneRegion != "" {
+			groups := region.GroupByRegion(cfg.StandaloneNodes)
+			targetNodes = groups[cfg.LastStandaloneRegion]
+			if len(targetNodes) == 0 {
+				targetNodes = cfg.StandaloneNodes
+			}
+		} else {
+			targetNodes = cfg.StandaloneNodes
+		}
+
+		fmt.Println("Testing latency...")
+		bestNode, bestLatency, err := latency.FindBest(targetNodes)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Best node: %s (%v)\n", bestNode.Name, bestLatency)
+
+		socksPort := httpPort + 1
+		runProxy(bestNode, socksPort, httpPort, cfg)
+		return
+	}
+
+	// 原有订阅逻辑
 	sub := cfg.FindSubscription(cfg.LastUsedSub)
 	if sub == nil {
-		sub = cfg.Subscriptions[0]
-		cfg.LastUsedSub = sub.Name
+		if len(cfg.Subscriptions) > 0 {
+			sub = cfg.Subscriptions[0]
+			cfg.LastUsedSub = sub.Name
+			cfg.LastUsedStandalone = false
+		} else {
+			fmt.Fprintln(os.Stderr, "No subscriptions available.")
+			os.Exit(1)
+		}
 	}
 	cfg.Save()
 
