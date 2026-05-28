@@ -2,11 +2,13 @@ package web
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 
 	"xray-go/config"
+	"xray-go/geo"
 	"xray-go/latency"
 	"xray-go/region"
 	"xray-go/singbox"
@@ -117,6 +119,18 @@ func (s *Server) handleProxyStart(w http.ResponseWriter, r *http.Request) {
 		"socks_port": socksPort,
 		"route_mode": s.cfg.RouteMode,
 	})
+
+	// Background geo data download after proxy is up
+	if geo.NeedUpdate() {
+		go func() {
+			socksAddr := fmt.Sprintf("127.0.0.1:%d", socksPort)
+			if err := geo.DownloadAll(socksAddr); err != nil {
+				log.Printf("geo data download failed: %v", err)
+				return
+			}
+			log.Println("geo data updated")
+		}()
+	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"message":    "proxy started",

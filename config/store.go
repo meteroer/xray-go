@@ -40,13 +40,17 @@ type Config struct {
 	LastStandaloneRegion string            `json:"last_standalone_region,omitempty"`
 }
 
-func configDir() (string, error) {
+func ConfigDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
 	dir := filepath.Join(home, ".xray-go")
 	return dir, os.MkdirAll(dir, 0755)
+}
+
+func configDir() (string, error) {
+	return ConfigDir()
 }
 
 func configPath() (string, error) {

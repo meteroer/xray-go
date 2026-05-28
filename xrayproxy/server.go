@@ -3,12 +3,14 @@ package xrayproxy
 import (
 	"fmt"
 	"net"
+	"os"
 	"strings"
 
 	_ "github.com/xtls/xray-core/main/distro/all"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/infra/conf/serial"
 	"xray-go/config"
+	"xray-go/geo"
 	"xray-go/subscription"
 )
 
@@ -188,6 +190,11 @@ func buildXrayConfig(node *subscription.Node, socksPort int, httpPort int, route
 }
 
 func Start(node *subscription.Node, socksPort int, httpPort int, routeMode config.RouteMode, whitelist, blacklist []string) (*Server, error) {
+	wd, _ := os.Getwd()
+	if wd != "" {
+		_ = geo.Ensure(wd)
+	}
+
 	configJSON := buildXrayConfig(node, socksPort, httpPort, routeMode, whitelist, blacklist)
 	cfg, err := serial.LoadJSONConfig(strings.NewReader(configJSON))
 	if err != nil {

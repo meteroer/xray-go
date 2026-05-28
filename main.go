@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"xray-go/config"
+	"xray-go/geo"
 	"xray-go/latency"
 	"xray-go/region"
 	"xray-go/singbox"
@@ -264,6 +265,19 @@ func runProxy(node *subscription.Node, socksPort, httpPort int, cfg *config.Conf
 		os.Exit(1)
 	}
 	fmt.Printf("Proxy running at 0.0.0.0:%d (HTTP) and 0.0.0.0:%d (SOCKS5) [%s mode]\n", httpPort, socksPort, cfg.RouteMode)
+
+	// Background geo data download after proxy is up
+	if geo.NeedUpdate() {
+		go func() {
+			fmt.Println("Checking geo data updates...")
+			socksAddr := fmt.Sprintf("127.0.0.1:%d", socksPort)
+			if err := geo.DownloadAll(socksAddr); err != nil {
+				fmt.Printf("Geo data download failed: %v\n", err)
+				return
+			}
+			fmt.Println("Geo data updated. Restart proxy to apply routing rules.")
+		}()
+	}
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
