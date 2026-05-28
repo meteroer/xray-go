@@ -24,6 +24,14 @@ type ProxyServer interface {
 }
 
 func main() {
+	for _, arg := range os.Args[1:] {
+		if arg == "-h" || arg == "--help" {
+			printHelp()
+			os.Exit(0)
+		}
+	}
+	os.Args = reorderArgs(os.Args)
+
 	urlFlag := flag.String("url", "", "add a new subscription URL")
 	portFlag := flag.Int("port", 16708, "local proxy port")
 	updateFlag := flag.Bool("update", false, "force re-fetch subscription and re-test latency")
@@ -623,4 +631,57 @@ func promptDeleteStandaloneNode(cfg *config.Config) {
 		cfg.Save()
 		fmt.Println("Deleted.")
 	}
+}
+
+func printHelp() {
+	fmt.Println(`xray-go - Xray proxy configuration tool
+
+Usage:
+  xray-go [flags]
+  xray-go start [flags]
+  xray-go web
+
+Commands:
+  start    Start proxy non-interactively using last saved configuration
+  web      Start web management interface on 0.0.0.0:18700
+
+Flags:
+  -port int     local proxy port (default 16708)
+  -update       force re-fetch subscription and re-test latency
+  -url string   add a new subscription URL
+
+Without a subcommand, enters interactive mode for manual configuration.`)
+}
+
+var flagTakesValue = map[string]bool{
+	"-port":  true,
+	"--port": true,
+	"-url":   true,
+	"--url":  true,
+}
+
+func reorderArgs(args []string) []string {
+	if len(args) <= 1 {
+		return args
+	}
+	var flags []string
+	var positional []string
+	for i := 1; i < len(args); i++ {
+		arg := args[i]
+		if flagTakesValue[arg] {
+			flags = append(flags, arg)
+			if i+1 < len(args) {
+				flags = append(flags, args[i+1])
+				i++
+			}
+		} else if strings.HasPrefix(arg, "-") {
+			flags = append(flags, arg)
+		} else {
+			positional = append(positional, arg)
+		}
+	}
+	result := []string{args[0]}
+	result = append(result, flags...)
+	result = append(result, positional...)
+	return result
 }
