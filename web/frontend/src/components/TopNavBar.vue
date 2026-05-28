@@ -1,8 +1,12 @@
 <template>
   <el-menu mode="horizontal" :ellipsis="false" class="top-nav">
-    <el-menu-item class="logo-item">
-      <span class="logo">Xray-Go</span>
-      <el-badge is-dot :type="proxyStore.status.running ? 'success' : 'danger'" class="status-badge" />
+    <el-menu-item class="logo-item" index="logo">
+      <span class="logo">XRAY-GO</span>
+      <span
+        class="status-dot"
+        :class="proxyStore.status.running ? 'running' : 'stopped'"
+      />
+      <span class="status-text">{{ proxyStore.status.running ? 'ONLINE' : 'OFFLINE' }}</span>
     </el-menu-item>
     <el-menu-item index="/" @click="router.push('/')">
       {{ t('nav.nodes') }}
@@ -18,7 +22,7 @@
     </el-menu-item>
     <div class="flex-grow" />
     <el-menu-item @click="toggleLang">
-      {{ locale === 'zh' ? 'EN' : '中文' }}
+      <span class="lang-toggle">{{ locale === 'zh' ? 'EN' : '中文' }}</span>
     </el-menu-item>
     <el-sub-menu index="user">
       <template #title>
@@ -57,17 +61,42 @@ const handleLogout = () => {
 
 <style scoped>
 .top-nav {
-  padding: 0 20px;
+  padding: 0 24px;
+  background: var(--geek-bg-secondary) !important;
+  border-bottom: 1px solid var(--geek-border) !important;
+  position: relative;
+  z-index: 10;
 }
 .logo-item {
-  font-weight: bold;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .logo {
-  font-size: 18px;
-  margin-right: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--geek-text);
 }
-.status-badge {
-  margin-top: -8px;
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.status-dot.running {
+  background-color: #52c41a;
+}
+.status-dot.stopped {
+  background-color: var(--geek-danger);
+}
+.status-text {
+  font-size: 11px;
+  color: var(--geek-text-secondary);
+}
+.lang-toggle {
+  font-size: 13px;
+  color: var(--geek-text-secondary);
 }
 .flex-grow {
   flex-grow: 1;

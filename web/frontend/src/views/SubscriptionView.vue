@@ -1,21 +1,25 @@
 <template>
   <div class="subscription-page">
     <div class="page-header">
-      <h2>{{ t('sub.title') }}</h2>
-      <el-button type="primary" @click="addDialogVisible = true">+ {{ t('sub.add') }}</el-button>
+      <h2 class="geek-title">{{ t('sub.title') }}</h2>
+      <el-button type="success" @click="addDialogVisible = true" class="add-btn">+ {{ t('sub.add') }}</el-button>
     </div>
 
-    <el-card shadow="never">
+    <el-card shadow="never" class="sub-card">
       <el-table :data="subStore.subscriptions" stripe style="width: 100%">
         <el-table-column prop="name" :label="t('sub.name')" width="180" />
-        <el-table-column prop="url" :label="t('sub.url')" min-width="260" show-overflow-tooltip />
+        <el-table-column prop="url" :label="t('sub.url')" min-width="260" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span class="mono-url">{{ row.url }}</span>
+          </template>
+        </el-table-column>
         <el-table-column :label="t('sub.nodesCount')" width="100" align="center">
-          <template #default="{ row }">{{ (row.nodes || []).length }}</template>
+          <template #default="{ row }"><span class="mono">{{ (row.nodes || []).length }}</span></template>
         </el-table-column>
         <el-table-column :label="t('sub.lastUpdate')" width="180">
-          <template #default="{ row }">{{ row.last_fetched || row.updated_at || '—' }}</template>
+          <template #default="{ row }"><span class="mono">{{ row.last_fetched || row.updated_at || '—' }}</span></template>
         </el-table-column>
-        <el-table-column :label="t('common.edit')" width="180" align="center">
+        <el-table-column :label="t('common.edit')" width="200" align="center">
           <template #default="{ row }">
             <el-button
               size="small"
@@ -23,7 +27,7 @@
               :loading="refreshingMap[row.name]"
               @click="handleRefresh(row.name)"
             >
-              {{ t('sub.refresh') }}
+              ↻ {{ t('sub.refresh') }}
             </el-button>
             <el-button size="small" type="danger" plain @click="handleDelete(row.name)">
               {{ t('common.delete') }}
@@ -99,7 +103,15 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 20px;
 }
-.page-header h2 {
-  margin: 0;
+.add-btn {
+  font-size: 13px;
+}
+.mono {
+  font-size: 13px;
+  color: var(--geek-text-secondary);
+}
+.mono-url {
+  font-size: 12px;
+  color: var(--geek-text-secondary);
 }
 </style>

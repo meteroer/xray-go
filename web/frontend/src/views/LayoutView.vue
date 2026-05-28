@@ -26,8 +26,11 @@ onUnmounted(() => {
 <style scoped>
 .layout {
   min-height: 100vh;
+  background-color: var(--geek-bg);
 }
 .main-content {
-  padding: 20px;
+  padding: 24px;
+  position: relative;
+  z-index: 1;
 }
 </style>

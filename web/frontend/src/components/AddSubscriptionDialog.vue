@@ -3,14 +3,14 @@
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
     :title="t('sub.add')"
-    width="500px"
+    width="520px"
   >
     <el-form :model="form" @submit.prevent="handleSubmit">
       <el-form-item :label="t('sub.name')">
-        <el-input v-model="form.name" />
+        <el-input v-model="form.name" placeholder="MySub" />
       </el-form-item>
       <el-form-item :label="t('sub.url')">
-        <el-input v-model="form.url" />
+        <el-input v-model="form.url" placeholder="https://example.com/sub" />
       </el-form-item>
     </el-form>
     <template #footer>

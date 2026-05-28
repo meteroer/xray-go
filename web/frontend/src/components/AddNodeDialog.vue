@@ -3,14 +3,14 @@
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
     :title="t('node.add')"
-    width="500px"
+    width="520px"
   >
     <el-form @submit.prevent="handleSubmit">
       <el-form-item :label="t('node.addHint')">
         <el-input
           v-model="link"
           type="textarea"
-          :rows="5"
+          :rows="6"
           placeholder="vmess://..., vless://..., trojan://..., ss://..."
         />
       </el-form-item>

@@ -7,10 +7,11 @@
         closable
         @close="removeRule(index)"
         class="rule-tag"
+        effect="dark"
       >
         {{ rule }}
       </el-tag>
-      <el-tag v-if="rules.length === 0" type="info">{{ t('common.noData') }}</el-tag>
+      <el-tag v-if="rules.length === 0" type="info" effect="dark">{{ t('common.noData') }}</el-tag>
     </div>
     <div v-if="showInput" class="rule-input">
       <el-input
@@ -18,14 +19,14 @@
         size="small"
         :placeholder="t('routing.addRule')"
         @keyup.enter="addRule"
-        style="width: 300px"
+        class="rule-input-field"
       >
         <template #append>
           <el-button @click="addRule" :disabled="!newRule.trim()">{{ t('common.confirm') }}</el-button>
         </template>
       </el-input>
     </div>
-    <el-button v-else size="small" @click="showInput = true">+ {{ t('routing.addRule') }}</el-button>
+    <el-button v-else size="small" class="add-rule-btn" @click="showInput = true">+ {{ t('routing.addRule') }}</el-button>
   </div>
 </template>
 
@@ -58,6 +59,12 @@ const removeRule = (index: number) => {
 </script>
 
 <style scoped>
+.route-rule-editor {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--geek-border);
+  border-radius: 6px;
+  padding: 16px;
+}
 .rule-tags {
   display: flex;
   flex-wrap: wrap;
@@ -68,8 +75,15 @@ const removeRule = (index: number) => {
   max-width: 400px;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 12px;
 }
 .rule-input {
   margin-top: 8px;
+}
+.rule-input-field {
+  max-width: 400px;
+}
+.add-rule-btn {
+  font-size: 12px;
 }
 </style>

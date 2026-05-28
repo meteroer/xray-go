@@ -1,9 +1,9 @@
 <template>
   <div class="settings-page">
-    <h2>{{ t('settings.title') }}</h2>
+    <h2 class="geek-title">{{ t('settings.title') }}</h2>
 
-    <el-card shadow="never" style="margin-top: 16px">
-      <el-form label-width="120px">
+    <el-card shadow="never" class="settings-card">
+      <el-form label-width="140px">
         <el-form-item :label="t('settings.language')">
           <el-switch
             :model-value="locale === 'zh'"
@@ -14,18 +14,20 @@
         </el-form-item>
 
         <el-form-item :label="t('settings.routeMode')">
-          <el-select v-model="routeMode" style="width: 200px">
+          <el-select v-model="routeMode" class="mode-select">
             <el-option value="global" :label="t('routing.global')" />
             <el-option value="whitelist" :label="t('routing.whitelist')" />
             <el-option value="blacklist" :label="t('routing.blacklist')" />
           </el-select>
-          <el-button type="primary" size="small" style="margin-left: 12px" @click="saveRouteMode">
+          <el-button type="primary" size="small" class="save-mode-btn" @click="saveRouteMode">
             {{ t('common.save') }}
           </el-button>
         </el-form-item>
 
         <el-form-item>
-          <el-button type="danger" @click="handleLogout">{{ t('settings.logout') }}</el-button>
+          <el-button type="danger" class="logout-btn" @click="handleLogout">
+            {{ t('settings.logout') }}
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -55,7 +57,7 @@ const toggleLang = (val: boolean) => {
 
 const saveRouteMode = async () => {
   try {
-    await api.put('/api/settings/route-mode', { mode: routeMode.value })
+    await api.put('/api/settings/route-mode', { route_mode: routeMode.value })
     ElMessage.success(t('common.success'))
   } catch (e: any) {
     ElMessage.error(e.message || t('common.error'))
@@ -75,7 +77,7 @@ const handleLogout = async () => {
 onMounted(async () => {
   try {
     const res = await api.get('/api/settings/route-mode')
-    routeMode.value = res.mode || 'global'
+    routeMode.value = res.route_mode || res.mode || 'global'
   } catch {}
 })
 </script>
@@ -84,5 +86,15 @@ onMounted(async () => {
 .settings-page {
   max-width: 1200px;
   margin: 0 auto;
+}
+.mode-select {
+  width: 200px;
+}
+.save-mode-btn {
+  margin-left: 12px;
+  font-size: 12px;
+}
+.logout-btn {
+  font-size: 13px;
 }
 </style>

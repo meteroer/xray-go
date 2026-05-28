@@ -1,11 +1,11 @@
 <template>
   <div class="routing-page">
-    <h2>{{ t('routing.title') }}</h2>
+    <h2 class="geek-title">{{ t('routing.title') }}</h2>
 
-    <el-card shadow="never" style="margin-top: 16px">
+    <el-card shadow="never" class="route-card">
       <el-form label-width="120px">
         <el-form-item :label="t('routing.mode')">
-          <el-radio-group v-model="routeMode">
+          <el-radio-group v-model="routeMode" class="mode-radio">
             <el-radio value="global">{{ t('routing.global') }}</el-radio>
             <el-radio value="whitelist">{{ t('routing.whitelist') }}</el-radio>
             <el-radio value="blacklist">{{ t('routing.blacklist') }}</el-radio>
@@ -23,7 +23,9 @@
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" :loading="saving" @click="handleSave">{{ t('common.save') }}</el-button>
+          <el-button type="primary" :loading="saving" @click="handleSave" class="save-btn">
+            {{ t('common.save') }}
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -48,11 +50,11 @@ const saving = ref(false)
 const handleSave = async () => {
   saving.value = true
   try {
-    await api.put('/api/settings/route-mode', { mode: routeMode.value })
+    await api.put('/api/settings/route-mode', { route_mode: routeMode.value })
     if (routeMode.value === 'whitelist') {
-      await api.put('/api/settings/whitelist', { rules: whitelist.value })
+      await api.put('/api/settings/whitelist', { whitelist: whitelist.value })
     } else if (routeMode.value === 'blacklist') {
-      await api.put('/api/settings/blacklist', { rules: blacklist.value })
+      await api.put('/api/settings/blacklist', { blacklist: blacklist.value })
     }
     ElMessage.success(t('routing.saveSuccess'))
   } catch (e: any) {
@@ -69,9 +71,9 @@ onMounted(async () => {
       api.get('/api/settings/whitelist'),
       api.get('/api/settings/blacklist'),
     ])
-    routeMode.value = modeRes.mode || 'global'
-    whitelist.value = wlRes.rules || wlRes.whitelist || []
-    blacklist.value = blRes.rules || blRes.blacklist || []
+    routeMode.value = modeRes.route_mode || modeRes.mode || 'global'
+    whitelist.value = wlRes.whitelist || wlRes.rules || []
+    blacklist.value = blRes.blacklist || blRes.rules || []
   } catch {}
 })
 </script>
@@ -82,8 +84,14 @@ onMounted(async () => {
   margin: 0 auto;
 }
 .mode-hint {
-  color: #909399;
-  font-size: 13px;
+  color: var(--geek-text-secondary);
+  font-size: 12px;
   margin: 0 0 12px 0;
+}
+.mode-radio :deep(.el-radio__label) {
+  font-size: 14px;
+}
+.save-btn {
+  font-size: 13px;
 }
 </style>

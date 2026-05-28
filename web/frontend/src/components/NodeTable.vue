@@ -1,30 +1,33 @@
 <template>
   <div class="node-table">
     <div class="toolbar">
-      <el-select v-model="selectedRegion" :placeholder="t('node.region')" clearable style="width: 200px">
+      <el-select v-model="selectedRegion" :placeholder="t('node.region')" clearable class="region-select">
         <el-option :label="t('node.allRegions')" value="" />
         <el-option v-for="r in regions" :key="r" :label="r" :value="r" />
       </el-select>
-      <el-button type="primary" :loading="testLoading" @click="handleTestLatency">
+      <el-button type="primary" :loading="testLoading" @click="handleTestLatency" class="test-btn">
         {{ t('node.testLatency') }}
       </el-button>
       <div class="flex-grow" />
-      <el-button type="success" @click="addDialogVisible = true">{{ t('node.add') }}</el-button>
+      <el-button type="success" @click="addDialogVisible = true" class="add-btn">+ {{ t('node.add') }}</el-button>
     </div>
 
-    <el-collapse v-model="activeGroups">
+    <el-collapse v-model="activeGroups" class="node-collapse">
       <el-collapse-item
         v-for="sub in subStore.subscriptions"
         :key="sub.name"
-        :title="`${sub.name} (${t('node.nodesCount', { count: filteredNodes(sub.nodes).length })})`"
+        :title="`[${sub.name}] — ${filteredNodes(sub.nodes).length} nodes`"
         :name="sub.name"
+        class="sub-group"
       >
         <el-table :data="filteredNodes(sub.nodes)" stripe style="width: 100%" size="small">
           <el-table-column prop="name" :label="t('node.name')" min-width="160" show-overflow-tooltip />
           <el-table-column :label="t('node.address')" min-width="180">
-            <template #default="{ row }">{{ row.address }}:{{ row.port }}</template>
+            <template #default="{ row }"><span class="mono">{{ row.address }}:{{ row.port }}</span></template>
           </el-table-column>
-          <el-table-column prop="protocol" :label="t('node.protocol')" width="100" />
+          <el-table-column prop="protocol" :label="t('node.protocol')" width="100">
+            <template #default="{ row }"><span class="protocol-tag">{{ row.protocol }}</span></template>
+          </el-table-column>
           <el-table-column :label="t('node.latency')" width="120" align="center">
             <template #default="{ row }">
               <LatencyTag :latency="latencyMap[row.name]" />
@@ -50,15 +53,18 @@
 
       <el-collapse-item
         v-if="subStore.standaloneNodes.length > 0"
-        :title="`${t('node.standalone')} (${t('node.nodesCount', { count: filteredNodes(subStore.standaloneNodes).length })})`"
+        :title="`[${t('node.standalone')}] — ${filteredNodes(subStore.standaloneNodes).length} nodes`"
         name="standalone"
+        class="sub-group"
       >
         <el-table :data="filteredNodes(subStore.standaloneNodes)" stripe style="width: 100%" size="small">
           <el-table-column prop="name" :label="t('node.name')" min-width="160" show-overflow-tooltip />
           <el-table-column :label="t('node.address')" min-width="180">
-            <template #default="{ row }">{{ row.address }}:{{ row.port }}</template>
+            <template #default="{ row }"><span class="mono">{{ row.address }}:{{ row.port }}</span></template>
           </el-table-column>
-          <el-table-column prop="protocol" :label="t('node.protocol')" width="100" />
+          <el-table-column prop="protocol" :label="t('node.protocol')" width="100">
+            <template #default="{ row }"><span class="protocol-tag">{{ row.protocol }}</span></template>
+          </el-table-column>
           <el-table-column :label="t('node.latency')" width="120" align="center">
             <template #default="{ row }">
               <LatencyTag :latency="latencyMap[row.name]" />
@@ -106,7 +112,7 @@ const LatencyTag = defineComponent({
   props: { latency: { type: Number, default: undefined } },
   setup(props) {
     return () => {
-      if (props.latency === undefined || props.latency === null) return h('span', { style: 'color:#c0c4cc' }, '—')
+      if (props.latency === undefined || props.latency === null) return h('span', { style: 'color:#555;' }, '—')
       if (props.latency < 0) return h(ElTag, { type: 'danger', size: 'small' }, () => '✕')
       const type = props.latency < 200 ? 'success' : props.latency < 500 ? 'warning' : 'danger'
       return h(ElTag, { type, size: 'small' }, () => `${props.latency}ms`)
@@ -134,7 +140,7 @@ const filteredNodes = (nodes: any[]) => {
 const loadRegions = async () => {
   try {
     const res = await api.get('/api/nodes/regions')
-    regions.value = res.regions || res || []
+    regions.value = res.regions || (Array.isArray(res) ? res : Object.keys(res))
   } catch {}
 }
 
@@ -144,9 +150,10 @@ const handleTestLatency = async () => {
     const body: any = {}
     if (selectedRegion.value) body.region = selectedRegion.value
     const res = await api.post('/api/proxy/test', body)
-    if (res.results) {
+    const results = Array.isArray(res) ? res : res.results
+    if (results) {
       const map: Record<string, number> = {}
-      for (const r of res.results) {
+      for (const r of results) {
         map[r.name] = r.latency
       }
       latencyMap.value = map
@@ -208,7 +215,33 @@ onMounted(() => {
   gap: 12px;
   margin-bottom: 16px;
 }
+.region-select {
+  width: 200px;
+}
+.test-btn, .add-btn {
+  font-size: 13px;
+}
 .flex-grow {
   flex-grow: 1;
+}
+.node-collapse {
+  border: 1px solid var(--geek-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.sub-group :deep(.el-collapse-item__header) {
+  font-size: 14px;
+  padding-left: 16px;
+}
+.mono {
+  font-size: 13px;
+  color: var(--geek-text-secondary);
+}
+.protocol-tag {
+  font-size: 12px;
+  color: var(--geek-text-secondary);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 </style>

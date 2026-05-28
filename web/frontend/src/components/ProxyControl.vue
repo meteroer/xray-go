@@ -2,37 +2,47 @@
   <el-card class="proxy-control" shadow="hover">
     <div class="proxy-status">
       <div class="status-left">
-        <el-tag :type="proxyStore.status.running ? 'success' : 'info'" size="large" effect="dark">
-          {{ proxyStore.status.running ? t('proxy.running') : t('proxy.stopped') }}
-        </el-tag>
+        <div class="status-block">
+          <span class="data-label">STATUS</span>
+          <el-tag :type="proxyStore.status.running ? 'success' : 'danger'" size="large" effect="dark" class="status-tag">
+            {{ proxyStore.status.running ? t('proxy.running') : t('proxy.stopped') }}
+          </el-tag>
+        </div>
         <template v-if="proxyStore.status.running">
-          <span class="status-detail">
-            {{ t('proxy.currentNode') }}: <strong>{{ proxyStore.status.node }}</strong>
-          </span>
-          <span class="status-detail">
-            {{ t('proxy.httpPort') }}: {{ proxyStore.status.http_port }}
-          </span>
-          <span class="status-detail">
-            {{ t('proxy.socksPort') }}: {{ proxyStore.status.socks_port }}
-          </span>
+          <div class="status-block">
+            <span class="data-label">NODE</span>
+            <span class="data-value">{{ proxyStore.status.node }}</span>
+          </div>
+          <div class="status-block">
+            <span class="data-label">HTTP</span>
+            <span class="data-value">{{ proxyStore.status.http_port }}</span>
+          </div>
+          <div class="status-block">
+            <span class="data-label">SOCKS</span>
+            <span class="data-value">{{ proxyStore.status.socks_port }}</span>
+          </div>
         </template>
       </div>
       <div class="status-right">
         <el-button
           v-if="!proxyStore.status.running"
           type="success"
+          size="large"
           @click="handleStart"
           :loading="startLoading"
+          class="action-btn"
         >
-          {{ t('proxy.start') }}
+          <span class="btn-icon">▶</span> {{ t('proxy.start') }}
         </el-button>
         <el-button
           v-else
           type="danger"
+          size="large"
           @click="handleStop"
           :loading="stopLoading"
+          class="action-btn"
         >
-          {{ t('proxy.stop') }}
+          <span class="btn-icon">■</span> {{ t('proxy.stop') }}
         </el-button>
       </div>
     </div>
@@ -82,7 +92,7 @@ const handleStop = async () => {
 
 <style scoped>
 .proxy-control {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 .proxy-status {
   display: flex;
@@ -92,15 +102,27 @@ const handleStop = async () => {
 .status-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 32px;
   flex-wrap: wrap;
 }
-.status-detail {
-  color: #606266;
+.status-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.status-tag {
   font-size: 14px;
 }
 .status-right {
   display: flex;
-  gap: 8px;
+  gap: 12px;
+}
+.action-btn {
+  font-size: 14px;
+  min-width: 120px;
+}
+.btn-icon {
+  margin-right: 6px;
+  font-size: 10px;
 }
 </style>
