@@ -1,17 +1,17 @@
-/* Clean Dark Theme */
+/* Clean White Theme */
 
 :root {
-  --geek-bg: #0a0a0a;
-  --geek-bg-secondary: #111111;
-  --geek-bg-card: #111111;
-  --geek-border: #222222;
-  --geek-border-hover: #333333;
-  --geek-text: #e8e8e8;
-  --geek-text-secondary: #888888;
-  --geek-accent: #ffffff;
-  --geek-accent-secondary: #888888;
-  --geek-danger: #ff4d4f;
-  --geek-warning: #faad14;
+  --geek-bg: #f5f7fa;
+  --geek-bg-secondary: #ffffff;
+  --geek-bg-card: #ffffff;
+  --geek-border: #e4e7ed;
+  --geek-border-hover: #c0c4cc;
+  --geek-text: #1a1a1a;
+  --geek-text-secondary: #606266;
+  --geek-accent: #1a1a1a;
+  --geek-accent-secondary: #606266;
+  --geek-danger: #f56c6c;
+  --geek-warning: #e6a23c;
 
   /* Element Plus overrides */
   --el-bg-color: var(--geek-bg-secondary);
@@ -22,22 +22,22 @@
   --el-border-color: var(--geek-border);
   --el-border-color-light: var(--geek-border);
   --el-border-color-lighter: var(--geek-border);
-  --el-fill-color: rgba(255, 255, 255, 0.04);
-  --el-fill-color-light: rgba(255, 255, 255, 0.06);
+  --el-fill-color: rgba(0, 0, 0, 0.04);
+  --el-fill-color-light: rgba(0, 0, 0, 0.06);
   --el-fill-color-blank: transparent;
 
-  --el-color-primary: #e8e8e8;
-  --el-color-primary-light-3: #c0c0c0;
-  --el-color-primary-light-5: #999999;
-  --el-color-primary-light-7: #666666;
-  --el-color-primary-light-8: #444444;
-  --el-color-primary-light-9: rgba(255, 255, 255, 0.08);
-  --el-color-primary-dark-2: #ffffff;
+  --el-color-primary: #1a1a1a;
+  --el-color-primary-light-3: #4d4d4d;
+  --el-color-primary-light-5: #808080;
+  --el-color-primary-light-7: #b3b3b3;
+  --el-color-primary-light-8: #cccccc;
+  --el-color-primary-light-9: rgba(0, 0, 0, 0.08);
+  --el-color-primary-dark-2: #000000;
 
-  --el-color-success: #52c41a;
-  --el-color-warning: #faad14;
-  --el-color-danger: #ff4d4f;
-  --el-color-info: #888888;
+  --el-color-success: #67c23a;
+  --el-color-warning: #e6a23c;
+  --el-color-danger: #f56c6c;
+  --el-color-info: #909399;
 }
 
 html, body {
@@ -63,13 +63,13 @@ html, body {
 }
 
 .el-menu-item:hover {
-  background-color: rgba(255, 255, 255, 0.04) !important;
+  background-color: rgba(0, 0, 0, 0.04) !important;
   color: var(--geek-text) !important;
 }
 
 .el-menu-item.is-active {
   color: var(--geek-accent) !important;
-  background-color: rgba(255, 255, 255, 0.06) !important;
+  background-color: rgba(0, 0, 0, 0.06) !important;
 }
 
 /* Card */
@@ -94,8 +94,8 @@ html, body {
 /* Table */
 .el-table {
   background-color: transparent !important;
-  --el-table-header-bg-color: rgba(255, 255, 255, 0.03);
-  --el-table-row-hover-bg-color: rgba(255, 255, 255, 0.03);
+  --el-table-header-bg-color: rgba(0, 0, 0, 0.03);
+  --el-table-row-hover-bg-color: rgba(0, 0, 0, 0.03);
   --el-table-border-color: var(--geek-border);
 }
 
@@ -121,7 +121,7 @@ html, body {
 }
 
 .el-input__wrapper {
-  background-color: rgba(0, 0, 0, 0.3) !important;
+  background-color: rgba(0, 0, 0, 0.03) !important;
   box-shadow: 0 0 0 1px var(--geek-border) inset !important;
 }
 
@@ -134,14 +134,14 @@ html, body {
 }
 
 .el-textarea__inner {
-  background-color: rgba(0, 0, 0, 0.3) !important;
+  background-color: rgba(0, 0, 0, 0.03) !important;
   color: var(--geek-text) !important;
   border-color: var(--geek-border) !important;
 }
 
 /* Select */
 .el-select .el-input__wrapper {
-  background-color: rgba(0, 0, 0, 0.3) !important;
+  background-color: rgba(0, 0, 0, 0.03) !important;
 }
 
 /* Button */
@@ -153,32 +153,32 @@ html, body {
 .el-button--primary {
   background-color: var(--geek-text) !important;
   border-color: var(--geek-text) !important;
-  color: var(--geek-bg) !important;
+  color: #ffffff !important;
 }
 
 .el-button--primary:hover {
-  background-color: #ffffff !important;
-  border-color: #ffffff !important;
+  background-color: #000000 !important;
+  border-color: #000000 !important;
 }
 
 .el-button--success {
-  background-color: rgba(82, 196, 26, 0.15) !important;
-  border-color: #52c41a !important;
-  color: #52c41a !important;
+  background-color: rgba(103, 194, 58, 0.1) !important;
+  border-color: #67c23a !important;
+  color: #67c23a !important;
 }
 
 .el-button--success:hover {
-  background-color: rgba(82, 196, 26, 0.25) !important;
+  background-color: rgba(103, 194, 58, 0.2) !important;
 }
 
 .el-button--danger {
-  background-color: rgba(255, 77, 79, 0.15) !important;
+  background-color: rgba(245, 108, 108, 0.1) !important;
   border-color: var(--geek-danger) !important;
   color: var(--geek-danger) !important;
 }
 
 .el-button--danger:hover {
-  background-color: rgba(255, 77, 79, 0.25) !important;
+  background-color: rgba(245, 108, 108, 0.2) !important;
 }
 
 /* Tag */
@@ -188,25 +188,25 @@ html, body {
 }
 
 .el-tag--success {
-  background-color: rgba(82, 196, 26, 0.15) !important;
-  border-color: #52c41a !important;
-  color: #52c41a !important;
+  background-color: rgba(103, 194, 58, 0.1) !important;
+  border-color: #67c23a !important;
+  color: #67c23a !important;
 }
 
 .el-tag--danger {
-  background-color: rgba(255, 77, 79, 0.15) !important;
+  background-color: rgba(245, 108, 108, 0.1) !important;
   border-color: var(--geek-danger) !important;
   color: var(--geek-danger) !important;
 }
 
 .el-tag--warning {
-  background-color: rgba(250, 173, 20, 0.15) !important;
+  background-color: rgba(230, 162, 60, 0.1) !important;
   border-color: var(--geek-warning) !important;
   color: var(--geek-warning) !important;
 }
 
 .el-tag--info {
-  background-color: rgba(136, 136, 136, 0.15) !important;
+  background-color: rgba(144, 147, 153, 0.1) !important;
   border-color: var(--geek-text-secondary) !important;
   color: var(--geek-text-secondary) !important;
 }
@@ -234,7 +234,7 @@ html, body {
 }
 
 .el-collapse-item__header {
-  background-color: rgba(255, 255, 255, 0.02) !important;
+  background-color: rgba(0, 0, 0, 0.02) !important;
   color: var(--geek-text) !important;
   border-bottom-color: var(--geek-border) !important;
   font-size: 14px;
@@ -263,7 +263,7 @@ html, body {
 /* Switch */
 .el-switch__core {
   border-color: var(--geek-border) !important;
-  background-color: rgba(0, 0, 0, 0.3) !important;
+  background-color: rgba(0, 0, 0, 0.1) !important;
 }
 
 .el-switch.is-checked .el-switch__core {
