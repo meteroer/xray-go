@@ -27,6 +27,7 @@ type Server struct {
 	httpPort    int
 	socksPort   int
 	mu          sync.RWMutex
+	hub         *wsHub
 }
 
 // NewServer creates a new web server
@@ -39,6 +40,7 @@ func NewServer(addr string, cfg *config.Config) (*Server, error) {
 	s := &Server{
 		auth: auth,
 		cfg:  cfg,
+		hub:  newWsHub(),
 	}
 
 	mux := http.NewServeMux()
