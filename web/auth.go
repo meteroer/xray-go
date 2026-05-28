@@ -66,7 +66,10 @@ func NewAuthManager() (*AuthManager, error) {
 
 // HasUser returns true if at least one user exists
 func (am *AuthManager) HasUser() bool {
-	users, _ := am.loadUsers()
+	users, err := am.loadUsers()
+	if err != nil {
+		return false
+	}
 	return len(users) > 0
 }
 
@@ -156,10 +159,13 @@ type jwtPayload struct {
 
 func (am *AuthManager) generateToken(username string) (string, error) {
 	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
-	payloadBytes, _ := json.Marshal(jwtPayload{
+	payloadBytes, err := json.Marshal(jwtPayload{
 		Sub: username,
 		Exp: time.Now().Add(tokenExpiry).Unix(),
 	})
+	if err != nil {
+		return "", err
+	}
 	payload := base64.RawURLEncoding.EncodeToString(payloadBytes)
 	message := header + "." + payload
 	mac := hmac.New(sha256.New, am.jwtSecret)
