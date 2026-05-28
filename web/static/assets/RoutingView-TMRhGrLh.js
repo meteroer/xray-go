@@ -1,0 +1,1 @@
+import{_ as n,e as o,a as t,k as r}from"./index-0GUkM1OF.js";const a={};function s(c,e){return r(),o("div",null,[...e[0]||(e[0]=[t("p",null,"Routing page placeholder",-1)])])}const i=n(a,[["render",s]]);export{i as default};

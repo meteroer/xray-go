@@ -1,0 +1,1 @@
+import{_ as o,e as r,a as s,k as a}from"./index-0GUkM1OF.js";const n={};function t(c,e){return a(),r("div",null,[...e[0]||(e[0]=[s("p",null,"Nodes page placeholder",-1)])])}const d=o(n,[["render",t]]);export{d as default};
