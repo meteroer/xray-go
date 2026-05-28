@@ -59,6 +59,16 @@ func (s *Server) handleSubscriptionDetail(w http.ResponseWriter, r *http.Request
 		name = rawName
 	}
 
+	if r.Method == http.MethodGet {
+		sub := s.cfg.FindSubscription(name)
+		if sub == nil {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "subscription not found"})
+			return
+		}
+		writeJSON(w, http.StatusOK, sub)
+		return
+	}
+
 	if r.Method == http.MethodDelete {
 		if !s.cfg.RemoveSubscription(name) {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "subscription not found"})

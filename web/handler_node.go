@@ -60,9 +60,26 @@ func (s *Server) handleNodesOrDelete(w http.ResponseWriter, r *http.Request) {
 		s.handleNodeRegions(w, r)
 		return
 	}
+
+	name := strings.TrimPrefix(path, "/api/nodes/")
+	name = strings.TrimPrefix(name, "/api/nodes")
+
+	if r.Method == http.MethodGet {
+		nodes := s.getAllNodes()
+		for _, n := range nodes {
+			if n.Name == name {
+				writeJSON(w, http.StatusOK, n)
+				return
+			}
+		}
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "node not found"})
+		return
+	}
+
 	if r.Method == http.MethodDelete {
 		s.handleDeleteStandaloneNode(w, r)
 		return
 	}
+
 	http.NotFound(w, r)
 }
