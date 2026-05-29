@@ -30,9 +30,18 @@
           <el-table-column prop="protocol" :label="t('node.protocol')" width="100">
             <template #default="{ row }"><span class="protocol-tag">{{ row.protocol }}</span></template>
           </el-table-column>
-          <el-table-column :label="t('node.latency')" width="120" align="center" sortable>
+          <el-table-column :label="t('node.latency')" width="140" align="center" sortable>
             <template #default="{ row }">
-              <LatencyTag :latency="latencyMap[row.name]" />
+              <div class="latency-cell">
+                <LatencyTag :latency="latencyMap[row.name]" />
+                <el-button
+                  size="small"
+                  type="primary"
+                  link
+                  :loading="testSingleLoading === row.name"
+                  @click.stop="handleTestSingleNode(row.name)"
+                >{{ t('node.testBtn') }}</el-button>
+              </div>
             </template>
           </el-table-column>
           <el-table-column :label="t('common.edit')" width="140" align="center">
@@ -74,9 +83,18 @@
           <el-table-column prop="protocol" :label="t('node.protocol')" width="100">
             <template #default="{ row }"><span class="protocol-tag">{{ row.protocol }}</span></template>
           </el-table-column>
-          <el-table-column :label="t('node.latency')" width="120" align="center" sortable>
+          <el-table-column :label="t('node.latency')" width="140" align="center" sortable>
             <template #default="{ row }">
-              <LatencyTag :latency="latencyMap[row.name]" />
+              <div class="latency-cell">
+                <LatencyTag :latency="latencyMap[row.name]" />
+                <el-button
+                  size="small"
+                  type="primary"
+                  link
+                  :loading="testSingleLoading === row.name"
+                  @click.stop="handleTestSingleNode(row.name)"
+                >{{ t('node.testBtn') }}</el-button>
+              </div>
             </template>
           </el-table-column>
           <el-table-column :label="t('common.edit')" width="180" align="center">
@@ -145,6 +163,7 @@ const api = useApi()
 const regions = ref<string[]>([])
 const selectedRegion = ref('')
 const testLoading = ref(false)
+const testSingleLoading = ref<string | null>(null)
 const testProgress = ref('')
 const latencyMap = ref<Record<string, number>>({})
 const addDialogVisible = ref(false)
@@ -189,6 +208,21 @@ const handleTestLatency = async () => {
   } finally {
     testLoading.value = false
     testProgress.value = ''
+  }
+}
+
+const handleTestSingleNode = async (name: string) => {
+  testSingleLoading.value = name
+  try {
+    const res = await api.post('/api/proxy/test', { node_name: name })
+    const result = Array.isArray(res) ? res[0] : res
+    if (result) {
+      latencyMap.value = { ...latencyMap.value, [result.name]: result.latency }
+    }
+  } catch (e: any) {
+    ElMessage.error(e.message || t('common.error'))
+  } finally {
+    testSingleLoading.value = null
   }
 }
 
@@ -279,6 +313,12 @@ onUnmounted(() => {
 }
 .test-btn, .add-btn {
   font-size: 13px;
+}
+.latency-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
 }
 .test-progress {
   font-size: 12px;

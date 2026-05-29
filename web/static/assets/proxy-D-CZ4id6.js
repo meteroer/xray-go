@@ -1,0 +1,1 @@
+import{k as o,q as r}from"./index-DdH0t-Lf.js";const a=o("proxy",()=>{const t=r({running:!1,node:"",http_port:0,socks_port:0,route_mode:""});return{status:t,updateStatus:e=>{t.value={...t.value,...e}}}});export{a as u};

@@ -56,6 +56,7 @@ export default {
     nodesCount: '{count} nodes',
     deleteConfirm: 'Delete node {name}?',
     current: 'Current',
+    testBtn: 'Test',
     testingProgress: 'Testing: {done}/{total} done',
   },
   sub: {

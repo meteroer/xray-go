@@ -56,6 +56,7 @@ export default {
     nodesCount: '{count} 个节点',
     deleteConfirm: '确定删除节点 {name}？',
     current: '当前',
+    testBtn: '测速',
     testingProgress: '正在测试：已完成 {done}/{total}',
   },
   sub: {

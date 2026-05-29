@@ -294,7 +294,8 @@ func (s *Server) handleProxyTest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Region string `json:"region,omitempty"`
+		Region   string `json:"region,omitempty"`
+		NodeName string `json:"node_name,omitempty"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		if !errors.Is(err, io.EOF) {
@@ -303,12 +304,24 @@ func (s *Server) handleProxyTest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	allNodes := s.getAllNodes()
 	var targetNodes []*subscription.Node
-	if req.Region != "" {
-		groups := region.GroupByRegion(s.getAllNodes())
+	if req.NodeName != "" {
+		for _, n := range allNodes {
+			if n.Name == req.NodeName {
+				targetNodes = []*subscription.Node{n}
+				break
+			}
+		}
+		if targetNodes == nil {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "node not found"})
+			return
+		}
+	} else if req.Region != "" {
+		groups := region.GroupByRegion(allNodes)
 		targetNodes = groups[req.Region]
 	} else {
-		targetNodes = s.getAllNodes()
+		targetNodes = allNodes
 	}
 	if len(targetNodes) == 0 {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no nodes available"})
