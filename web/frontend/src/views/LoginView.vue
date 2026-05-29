@@ -38,10 +38,12 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { useApi } from '@/composables/useApi'
+import { useAuthStore } from '@/stores/auth'
 
 const { t } = useI18n()
 const router = useRouter()
 const api = useApi()
+const authStore = useAuthStore()
 
 const isRegister = ref(false)
 const loading = ref(false)
@@ -61,7 +63,7 @@ const handleSubmit = async () => {
   try {
     const endpoint = isRegister.value ? '/api/auth/init' : '/api/auth/login'
     const res = await api.post(endpoint, form.value)
-    localStorage.setItem('token', res.token)
+    authStore.setToken(res.token, res.username)
     ElMessage.success(t(isRegister.value ? 'auth.registerSuccess' : 'auth.loginSuccess'))
     router.push('/')
   } catch (e: any) {
