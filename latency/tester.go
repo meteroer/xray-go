@@ -1,8 +1,9 @@
 package latency
 
 import (
-	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"sync"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 
 	"golang.org/x/net/proxy"
 )
+
+var testURL = "http://www.gstatic.com/generate_204"
 
 type Result struct {
 	Node    *subscription.Node
@@ -77,14 +80,21 @@ func testNode(node *subscription.Node) (time.Duration, error) {
 		return 0, fmt.Errorf("socks5 dialer does not support DialContext")
 	}
 
-	start := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	conn, err := contextDialer.DialContext(ctx, "tcp", "cp.cloudflare.com:80")
-	if err != nil {
-		return 0, fmt.Errorf("dial: %w", err)
+	httpTransport := &http.Transport{
+		DialContext: contextDialer.DialContext,
 	}
-	conn.Close()
+	httpClient := &http.Client{
+		Transport: httpTransport,
+		Timeout:   10 * time.Second,
+	}
+
+	start := time.Now()
+	resp, err := httpClient.Get(testURL)
+	if err != nil {
+		return 0, fmt.Errorf("http get: %w", err)
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
 	elapsed := time.Since(start)
 	return elapsed, nil
 }
