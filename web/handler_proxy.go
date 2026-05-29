@@ -223,6 +223,11 @@ func (s *Server) handleProxyStart(w http.ResponseWriter, r *http.Request) {
 				log.Printf("geo data download failed: %v", err)
 				return
 			}
+			s.hub.Broadcast(map[string]interface{}{
+				"type":    "geo_update",
+				"status":  "completed",
+				"message": "geo data updated",
+			})
 			log.Println("geo data updated")
 		}()
 	}

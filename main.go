@@ -302,7 +302,7 @@ func runProxy(node *subscription.Node, socksPort, httpPort int, cfg *config.Conf
 				fmt.Printf("Geo data download failed: %v\n", err)
 				return
 			}
-			fmt.Println("Geo data updated. Restart proxy to apply routing rules.")
+			fmt.Println("Geo data updated.")
 		}()
 	}
 

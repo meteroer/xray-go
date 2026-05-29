@@ -10,7 +10,6 @@ import (
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/infra/conf/serial"
 	"xray-go/config"
-	"xray-go/geo"
 	"xray-go/subscription"
 )
 
@@ -190,9 +189,9 @@ func buildXrayConfig(node *subscription.Node, socksPort int, httpPort int, route
 }
 
 func Start(node *subscription.Node, socksPort int, httpPort int, routeMode config.RouteMode, whitelist, blacklist []string) (*Server, error) {
-	wd, _ := os.Getwd()
-	if wd != "" {
-		_ = geo.Ensure(wd)
+	geoDir, _ := config.ConfigDir()
+	if geoDir != "" {
+		os.Setenv("XRAY_LOCATION_ASSET", geoDir)
 	}
 
 	configJSON := buildXrayConfig(node, socksPort, httpPort, routeMode, whitelist, blacklist)
