@@ -1,0 +1,1 @@
+import{k as r,q as e}from"./index-BL-p32lB.js";const n=r("proxy",()=>{const t=e({running:!1,node:"",http_port:0,socks_port:0,route_mode:""}),o=e("");return{status:t,selectedRegion:o,updateStatus:s=>{t.value={...t.value,...s}}}});export{n as u};

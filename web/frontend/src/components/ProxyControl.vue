@@ -85,7 +85,9 @@ const routeModeLabel = computed(() => {
 const handleStart = async () => {
   startLoading.value = true
   try {
-    const res = await api.post('/api/proxy/start')
+    const body: any = {}
+    if (proxyStore.selectedRegion) body.region = proxyStore.selectedRegion
+    const res = await api.post('/api/proxy/start', body)
     proxyStore.updateStatus(res)
     ElMessage.success(t('common.success'))
   } catch (e: any) {

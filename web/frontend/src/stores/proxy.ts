@@ -18,9 +18,11 @@ export const useProxyStore = defineStore('proxy', () => {
     route_mode: '',
   })
 
+  const selectedRegion = ref('')
+
   const updateStatus = (data: Partial<ProxyStatus>) => {
     status.value = { ...status.value, ...data }
   }
 
-  return { status, updateStatus }
+  return { status, selectedRegion, updateStatus }
 })

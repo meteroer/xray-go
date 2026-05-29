@@ -1,7 +1,7 @@
 <template>
   <div class="node-table">
     <div class="toolbar">
-      <el-select v-model="selectedRegion" :placeholder="t('node.region')" clearable class="region-select">
+      <el-select v-model="proxyStore.selectedRegion" :placeholder="t('node.region')" clearable class="region-select">
         <el-option :label="t('node.allRegions')" value="" />
         <el-option v-for="r in regions" :key="r" :label="r" :value="r" />
       </el-select>
@@ -161,7 +161,6 @@ const ws = useWebSocket()
 const api = useApi()
 
 const regions = ref<string[]>([])
-const selectedRegion = ref('')
 const testLoading = ref(false)
 const testSingleLoading = ref<string | null>(null)
 const testProgress = ref('')
@@ -177,8 +176,8 @@ const rowClassName = ({ row }: { row: any }) => {
 }
 
 const filteredNodes = (nodes: any[]) => {
-  if (!selectedRegion.value) return nodes
-  return nodes.filter(n => n.region === selectedRegion.value)
+  if (!proxyStore.selectedRegion) return nodes
+  return nodes.filter(n => n.region === proxyStore.selectedRegion)
 }
 
 const loadRegions = async () => {
@@ -193,7 +192,7 @@ const handleTestLatency = async () => {
   testProgress.value = ''
   try {
     const body: any = {}
-    if (selectedRegion.value) body.region = selectedRegion.value
+    if (proxyStore.selectedRegion) body.region = proxyStore.selectedRegion
     const res = await api.post('/api/proxy/test', body)
     const results = Array.isArray(res) ? res : res.results
     if (results) {
