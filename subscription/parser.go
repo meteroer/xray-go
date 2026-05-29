@@ -14,6 +14,7 @@ type Node struct {
 	Protocol    string `json:"protocol"`
 	Address     string `json:"address"`
 	Port        int    `json:"port"`
+	Region      string `json:"region,omitempty"`
 	UUID        string `json:"uuid"`
 	AlterId     int    `json:"alter_id"`
 	Security    string `json:"security"`

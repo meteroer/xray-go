@@ -35,6 +35,7 @@ func (s *Server) handleNodes(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 			return
 		}
+		node.Region = region.DetectRegion(node)
 		s.cfg.AddStandaloneNode(node)
 		if err := s.cfg.Save(); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})

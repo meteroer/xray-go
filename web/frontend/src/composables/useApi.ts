@@ -1,40 +1,51 @@
-import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+let _showSessionExpired: (() => void) | null = null
+
+export function registerSessionExpiredHandler(fn: () => void) {
+  _showSessionExpired = fn
+}
 
 export function useApi() {
-  const router = useRouter()
-
-  const getToken = () => localStorage.getItem('token') || ''
+  const authStore = useAuthStore()
 
   const request = async (url: string, options: RequestInit = {}) => {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...(options.headers as Record<string, string> || {}),
     }
-    const token = getToken()
+    const token = authStore.token
     if (token) {
       headers['Authorization'] = `Bearer ${token}`
     }
+    if (options.body && typeof options.body === 'string') {
+      headers['Content-Type'] = 'application/json'
+    }
 
-    const response = await fetch(url, { ...options, headers })
+    const res = await fetch(url, { ...options, headers })
 
-    if (response.status === 401) {
-      localStorage.removeItem('token')
-      router.push('/login')
+    if (res.status === 401) {
+      if (_showSessionExpired) _showSessionExpired()
+      authStore.clearToken()
+      window.location.href = '/login'
       throw new Error('Unauthorized')
     }
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}))
-      throw new Error(data.message || response.statusText)
+    if (!res.ok) {
+      let errorMsg = ''
+      try {
+        const data = await res.json()
+        errorMsg = data.error || data.message || ''
+      } catch {}
+      throw new Error(errorMsg || `HTTP ${res.status}`)
     }
 
-    return response.json()
+    return res.json()
   }
 
-  const get = (url: string) => request(url)
-  const post = (url: string, data?: any) => request(url, { method: 'POST', body: JSON.stringify(data) })
-  const put = (url: string, data?: any) => request(url, { method: 'PUT', body: JSON.stringify(data) })
-  const del = (url: string) => request(url, { method: 'DELETE' })
-
-  return { get, post, put, del }
+  return {
+    get: (url: string) => request(url),
+    post: (url: string, body?: any) => request(url, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
+    put: (url: string, body?: any) => request(url, { method: 'PUT', body: body ? JSON.stringify(body) : undefined }),
+    del: (url: string) => request(url, { method: 'DELETE' }),
+  }
 }

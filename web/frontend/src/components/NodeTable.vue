@@ -8,6 +8,7 @@
       <el-button type="primary" :loading="testLoading" @click="handleTestLatency" class="test-btn">
         {{ t('node.testLatency') }}
       </el-button>
+      <span v-if="testProgress" class="test-progress">{{ testProgress }}</span>
       <div class="flex-grow" />
       <el-button type="success" @click="addDialogVisible = true" class="add-btn">+ {{ t('node.add') }}</el-button>
     </div>
@@ -21,7 +22,7 @@
         class="sub-group"
       >
         <div class="table-scroll">
-        <el-table :data="filteredNodes(sub.nodes)" stripe style="width: 100%" size="small">
+        <el-table :data="filteredNodes(sub.nodes)" stripe style="width: 100%" size="small" :row-class-name="rowClassName">
           <el-table-column prop="name" :label="t('node.name')" min-width="160" show-overflow-tooltip />
           <el-table-column :label="t('node.address')" min-width="180">
             <template #default="{ row }"><span class="mono">{{ row.address }}:{{ row.port }}</span></template>
@@ -29,24 +30,29 @@
           <el-table-column prop="protocol" :label="t('node.protocol')" width="100">
             <template #default="{ row }"><span class="protocol-tag">{{ row.protocol }}</span></template>
           </el-table-column>
-          <el-table-column :label="t('node.latency')" width="120" align="center">
+          <el-table-column :label="t('node.latency')" width="120" align="center" sortable>
             <template #default="{ row }">
               <LatencyTag :latency="latencyMap[row.name]" />
             </template>
           </el-table-column>
-          <el-table-column :label="t('common.edit')" width="100" align="center">
+          <el-table-column :label="t('common.edit')" width="140" align="center">
             <template #default="{ row }">
-              <el-button
-                v-if="proxyStore.status.running && proxyStore.status.node === row.name"
-                type="danger"
-                size="small"
-                @click="handleStop"
-              >
-                {{ t('node.disconnect') }}
-              </el-button>
-              <el-button v-else type="primary" size="small" @click="handleConnect(row.name)">
-                {{ t('node.connect') }}
-              </el-button>
+              <template v-if="proxyStore.status.running && proxyStore.status.node === row.name">
+                <el-tag type="success" size="small" effect="dark">{{ t('node.current') }}</el-tag>
+                <el-button type="danger" size="small" @click="handleStop" style="margin-left:4px">
+                  {{ t('node.disconnect') }}
+                </el-button>
+              </template>
+              <template v-else-if="proxyStore.status.running">
+                <el-button type="warning" size="small" @click="handleSwitch(row.name)">
+                  {{ t('node.switchTo') }}
+                </el-button>
+              </template>
+              <template v-else>
+                <el-button type="primary" size="small" @click="handleConnect(row.name)">
+                  {{ t('node.connect') }}
+                </el-button>
+              </template>
             </template>
           </el-table-column>
         </el-table>
@@ -60,7 +66,7 @@
         class="sub-group"
       >
         <div class="table-scroll">
-        <el-table :data="filteredNodes(subStore.standaloneNodes)" stripe style="width: 100%" size="small">
+        <el-table :data="filteredNodes(subStore.standaloneNodes)" stripe style="width: 100%" size="small" :row-class-name="rowClassName">
           <el-table-column prop="name" :label="t('node.name')" min-width="160" show-overflow-tooltip />
           <el-table-column :label="t('node.address')" min-width="180">
             <template #default="{ row }"><span class="mono">{{ row.address }}:{{ row.port }}</span></template>
@@ -68,24 +74,29 @@
           <el-table-column prop="protocol" :label="t('node.protocol')" width="100">
             <template #default="{ row }"><span class="protocol-tag">{{ row.protocol }}</span></template>
           </el-table-column>
-          <el-table-column :label="t('node.latency')" width="120" align="center">
+          <el-table-column :label="t('node.latency')" width="120" align="center" sortable>
             <template #default="{ row }">
               <LatencyTag :latency="latencyMap[row.name]" />
             </template>
           </el-table-column>
-          <el-table-column :label="t('common.edit')" width="160" align="center">
+          <el-table-column :label="t('common.edit')" width="180" align="center">
             <template #default="{ row }">
-              <el-button
-                v-if="proxyStore.status.running && proxyStore.status.node === row.name"
-                type="danger"
-                size="small"
-                @click="handleStop"
-              >
-                {{ t('node.disconnect') }}
-              </el-button>
-              <el-button v-else type="primary" size="small" @click="handleConnect(row.name)">
-                {{ t('node.connect') }}
-              </el-button>
+              <template v-if="proxyStore.status.running && proxyStore.status.node === row.name">
+                <el-tag type="success" size="small" effect="dark">{{ t('node.current') }}</el-tag>
+                <el-button type="danger" size="small" @click="handleStop" style="margin-left:4px">
+                  {{ t('node.disconnect') }}
+                </el-button>
+              </template>
+              <template v-else-if="proxyStore.status.running">
+                <el-button type="warning" size="small" @click="handleSwitch(row.name)">
+                  {{ t('node.switchTo') }}
+                </el-button>
+              </template>
+              <template v-else>
+                <el-button type="primary" size="small" @click="handleConnect(row.name)">
+                  {{ t('node.connect') }}
+                </el-button>
+              </template>
               <el-button type="danger" size="small" plain @click="handleDeleteNode(row.name)">
                 {{ t('common.delete') }}
               </el-button>
@@ -104,11 +115,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, h, defineComponent } from 'vue'
+import { ref, onMounted, onUnmounted, h, defineComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, ElTag } from 'element-plus'
 import { useProxyStore } from '@/stores/proxy'
 import { useSubscriptionStore } from '@/stores/subscription'
+import { useWebSocket } from '@/composables/useWebSocket'
 import { useApi } from '@/composables/useApi'
 import AddNodeDialog from './AddNodeDialog.vue'
 
@@ -127,14 +139,23 @@ const LatencyTag = defineComponent({
 const { t } = useI18n()
 const proxyStore = useProxyStore()
 const subStore = useSubscriptionStore()
+const ws = useWebSocket()
 const api = useApi()
 
 const regions = ref<string[]>([])
 const selectedRegion = ref('')
 const testLoading = ref(false)
+const testProgress = ref('')
 const latencyMap = ref<Record<string, number>>({})
 const addDialogVisible = ref(false)
 const activeGroups = ref<string[]>([])
+
+const rowClassName = ({ row }: { row: any }) => {
+  if (proxyStore.status.running && proxyStore.status.node === row.name) {
+    return 'current-node-row'
+  }
+  return ''
+}
 
 const filteredNodes = (nodes: any[]) => {
   if (!selectedRegion.value) return nodes
@@ -150,6 +171,7 @@ const loadRegions = async () => {
 
 const handleTestLatency = async () => {
   testLoading.value = true
+  testProgress.value = ''
   try {
     const body: any = {}
     if (selectedRegion.value) body.region = selectedRegion.value
@@ -166,10 +188,21 @@ const handleTestLatency = async () => {
     ElMessage.error(e.message || t('common.error'))
   } finally {
     testLoading.value = false
+    testProgress.value = ''
   }
 }
 
 const handleConnect = async (nodeName: string) => {
+  try {
+    const res = await api.post('/api/proxy/start', { node_name: nodeName })
+    proxyStore.updateStatus(res)
+    ElMessage.success(t('common.success'))
+  } catch (e: any) {
+    ElMessage.error(e.message || t('common.error'))
+  }
+}
+
+const handleSwitch = async (nodeName: string) => {
   try {
     const res = await api.post('/api/proxy/start', { node_name: nodeName })
     proxyStore.updateStatus(res)
@@ -204,8 +237,30 @@ const handleNodeAdded = async () => {
   await subStore.loadConfig()
 }
 
-onMounted(() => {
+// Listen for latency progress via WebSocket
+const wsCleanup = ws.onMessage((data: any) => {
+  if (data.type === 'latency_progress') {
+    if (data.status === 'started') {
+      testProgress.value = t('node.testingProgress', { done: 0, total: data.total })
+    } else if (data.status === 'completed') {
+      testProgress.value = ''
+    }
+  }
+})
+
+onMounted(async () => {
   loadRegions()
+  await subStore.loadConfig()
+  // Default expand first subscription group
+  if (subStore.subscriptions.length > 0) {
+    activeGroups.value = [subStore.subscriptions[0].name]
+  } else if (subStore.standaloneNodes.length > 0) {
+    activeGroups.value = ['standalone']
+  }
+})
+
+onUnmounted(() => {
+  if (wsCleanup) wsCleanup()
 })
 </script>
 
@@ -224,6 +279,10 @@ onMounted(() => {
 }
 .test-btn, .add-btn {
   font-size: 13px;
+}
+.test-progress {
+  font-size: 12px;
+  color: var(--geek-text-secondary);
 }
 .flex-grow {
   flex-grow: 1;
@@ -251,6 +310,12 @@ onMounted(() => {
 .table-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+.node-table :deep(.current-node-row) {
+  background-color: rgba(82, 196, 26, 0.08) !important;
+}
+.node-table :deep(.current-node-row td) {
+  font-weight: 500;
 }
 @media (max-width: 768px) {
   .toolbar {

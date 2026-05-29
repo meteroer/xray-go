@@ -97,6 +97,7 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { User } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
 import { useProxyStore } from '@/stores/proxy'
 import { useAuthStore } from '@/stores/auth'
 
@@ -113,10 +114,13 @@ const toggleLang = () => {
   localStorage.setItem('lang', newLang)
 }
 
-const handleLogout = () => {
+const handleLogout = async () => {
   menuOpen.value = false
-  authStore.clearToken()
-  router.push('/login')
+  try {
+    await ElMessageBox.confirm(t('settings.logoutConfirm'), t('common.confirm'), { type: 'warning' })
+    authStore.clearToken()
+    router.push('/login')
+  } catch {}
 }
 
 const navigate = (path: string) => {

@@ -20,7 +20,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/auth/status", s.handleAuthStatus)
 	mux.HandleFunc("/api/auth/logout", s.handleAuthLogout)
 
-	mux.HandleFunc("/api/config", s.authMiddleware(s.handleConfig))
+	mux.HandleFunc("/api/config", s.authMiddleware(s.handleGetConfig))
 
 	mux.HandleFunc("/api/subscriptions", s.authMiddleware(s.handleSubscriptions))
 	mux.HandleFunc("/api/subscriptions/", s.authMiddleware(s.handleSubscriptionDetail))

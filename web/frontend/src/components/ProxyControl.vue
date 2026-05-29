@@ -11,7 +11,7 @@
         <template v-if="proxyStore.status.running">
           <div class="status-block">
             <span class="data-label">NODE</span>
-            <span class="data-value">{{ proxyStore.status.node }}</span>
+            <span class="data-value">{{ currentNodeName }}</span>
           </div>
           <div class="status-block">
             <span class="data-label">HTTP</span>
@@ -20,6 +20,10 @@
           <div class="status-block">
             <span class="data-label">SOCKS</span>
             <span class="data-value">{{ proxyStore.status.socks_port }}</span>
+          </div>
+          <div class="status-block">
+            <span class="data-label">{{ t('proxy.routeMode') }}</span>
+            <span class="data-value">{{ routeModeLabel }}</span>
           </div>
         </template>
       </div>
@@ -50,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { useProxyStore } from '@/stores/proxy'
@@ -62,6 +66,21 @@ const api = useApi()
 
 const startLoading = ref(false)
 const stopLoading = ref(false)
+
+const currentNodeName = computed(() => {
+  const node = proxyStore.status.node
+  if (typeof node === 'string') return node
+  if (node && node.name) return node.name
+  return ''
+})
+
+const routeModeLabel = computed(() => {
+  const mode = proxyStore.status.route_mode
+  if (mode === 'global') return t('proxy.modeGlobal')
+  if (mode === 'whitelist') return t('proxy.modeWhitelist')
+  if (mode === 'blacklist') return t('proxy.modeBlacklist')
+  return mode || '—'
+})
 
 const handleStart = async () => {
   startLoading.value = true

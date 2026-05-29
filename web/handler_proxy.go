@@ -25,8 +25,95 @@ func (s *Server) handleProxyStart(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// If proxy is already running and a new node is requested, switch nodes
 	if s.isRunning {
-		writeJSON(w, http.StatusConflict, map[string]string{"error": "proxy already running"})
+		var req struct {
+			NodeName  string           `json:"node_name,omitempty"`
+			Region    string           `json:"region,omitempty"`
+			RouteMode config.RouteMode `json:"route_mode,omitempty"`
+		}
+		if err := readJSON(r, &req); err != nil {
+			if !errors.Is(err, io.EOF) {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request"})
+				return
+			}
+		}
+
+		// No node specified and already running — just return current status
+		if req.NodeName == "" {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "proxy already running, specify node_name to switch"})
+			return
+		}
+
+		// Switch to a specific node
+		var node *subscription.Node
+		allNodes := s.getAllNodes()
+		for _, n := range allNodes {
+			if n.Name == req.NodeName {
+				node = n
+				break
+			}
+		}
+		if node == nil {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "node not found"})
+			return
+		}
+
+		// Stop current proxy
+		if s.proxy != nil {
+			s.proxy.Stop()
+		}
+
+		httpPort := s.httpPort
+		socksPort := s.socksPort
+		if httpPort == 0 {
+			httpPort = 16708
+		}
+		if socksPort == 0 {
+			socksPort = httpPort + 1
+		}
+
+		var proxy ProxyServer
+		var err error
+		if node.Protocol == "anytls" {
+			proxy, err = singbox.Start(node, socksPort, httpPort, s.cfg.RouteMode, s.cfg.Whitelist, s.cfg.Blacklist)
+		} else {
+			proxy, err = xrayproxy.Start(node, socksPort, httpPort, s.cfg.RouteMode, s.cfg.Whitelist, s.cfg.Blacklist)
+		}
+		if err != nil {
+			s.isRunning = false
+			s.proxy = nil
+			s.currentNode = nil
+			s.hub.Broadcast(map[string]interface{}{
+				"type":       "proxy_status",
+				"running":    false,
+				"node":       nil,
+				"http_port":  0,
+				"socks_port": 0,
+				"route_mode": s.cfg.RouteMode,
+			})
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+
+		s.proxy = proxy
+		s.currentNode = node
+
+		s.hub.Broadcast(map[string]interface{}{
+			"type":       "proxy_status",
+			"running":    true,
+			"node":       node,
+			"http_port":  httpPort,
+			"socks_port": socksPort,
+			"route_mode": s.cfg.RouteMode,
+		})
+
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"message":    "proxy switched",
+			"node":       node,
+			"http_port":  httpPort,
+			"socks_port": socksPort,
+		})
 		return
 	}
 

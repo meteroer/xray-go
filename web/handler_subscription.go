@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"xray-go/config"
+	"xray-go/region"
 	"xray-go/singbox"
 	"xray-go/subscription"
 	"xray-go/xrayproxy"
@@ -33,6 +34,11 @@ func (s *Server) handleSubscriptions(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		sub := s.cfg.AddSubscription(req.Name, req.URL)
+		for _, node := range sub.Nodes {
+			if node.Region == "" {
+				node.Region = region.DetectRegion(node)
+			}
+		}
 		if err := s.cfg.Save(); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
@@ -82,11 +88,41 @@ func (s *Server) handleSubscriptionDetail(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	if r.Method == http.MethodPut {
+		sub := s.cfg.FindSubscription(name)
+		if sub == nil {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "subscription not found"})
+			return
+		}
+		var req struct {
+			URL string `json:"url"`
+		}
+		if err := readJSON(r, &req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request"})
+			return
+		}
+		if strings.TrimSpace(req.URL) == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "url required"})
+			return
+		}
+		sub.URL = strings.TrimSpace(req.URL)
+		if err := s.cfg.Save(); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, sub)
+		return
+	}
+
 	if r.Method == http.MethodPost && len(parts) > 1 && parts[1] == "refresh" {
 		sub := s.cfg.FindSubscription(name)
 		if sub == nil {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "subscription not found"})
 			return
+		}
+		oldNames := make(map[string]bool)
+		for _, n := range sub.Nodes {
+			oldNames[n.Name] = true
 		}
 		data, err := subscription.Fetch(sub.URL)
 		if err != nil {
@@ -102,13 +138,39 @@ func (s *Server) handleSubscriptionDetail(w http.ResponseWriter, r *http.Request
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
 		}
+		newNames := make(map[string]bool)
+		for _, n := range nodes {
+			newNames[n.Name] = true
+		}
+		added := 0
+		for n := range newNames {
+			if !oldNames[n] {
+				added++
+			}
+		}
+		removed := 0
+		for n := range oldNames {
+			if !newNames[n] {
+				removed++
+			}
+		}
 		sub.Nodes = nodes
+		for _, node := range sub.Nodes {
+			if node.Region == "" {
+				node.Region = region.DetectRegion(node)
+			}
+		}
 		sub.LastFetched = time.Now()
 		if err := s.cfg.Save(); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
 		}
-		writeJSON(w, http.StatusOK, sub)
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"subscription": sub,
+			"added":        added,
+			"removed":      removed,
+			"total":        len(nodes),
+		})
 		return
 	}
 

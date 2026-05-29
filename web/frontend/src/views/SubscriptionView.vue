@@ -20,7 +20,7 @@
         <el-table-column :label="t('sub.lastUpdate')" width="180">
           <template #default="{ row }"><span class="mono">{{ row.last_fetched || row.updated_at || '—' }}</span></template>
         </el-table-column>
-        <el-table-column :label="t('common.edit')" width="200" align="center">
+        <el-table-column :label="t('common.edit')" width="260" align="center">
           <template #default="{ row }">
             <el-button
               size="small"
@@ -29,6 +29,9 @@
               @click="handleRefresh(row.name)"
             >
               ↻ {{ t('sub.refresh') }}
+            </el-button>
+            <el-button size="small" @click="handleEdit(row)">
+              {{ t('sub.edit') }}
             </el-button>
             <el-button size="small" type="danger" plain @click="handleDelete(row.name)">
               {{ t('common.delete') }}
@@ -43,6 +46,12 @@
       v-model="addDialogVisible"
       @added="handleAdded"
     />
+
+    <EditSubscriptionDialog
+      v-model="editDialogVisible"
+      :subscription="editTarget"
+      @saved="handleSaved"
+    />
   </div>
 </template>
 
@@ -53,25 +62,40 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useSubscriptionStore } from '@/stores/subscription'
 import { useApi } from '@/composables/useApi'
 import AddSubscriptionDialog from '@/components/AddSubscriptionDialog.vue'
+import EditSubscriptionDialog from '@/components/EditSubscriptionDialog.vue'
 
 const { t } = useI18n()
 const subStore = useSubscriptionStore()
 const api = useApi()
 
 const addDialogVisible = ref(false)
+const editDialogVisible = ref(false)
+const editTarget = ref<any>(null)
 const refreshingMap = reactive<Record<string, boolean>>({})
 
 const handleRefresh = async (name: string) => {
   refreshingMap[name] = true
   try {
-    await api.post(`/api/subscriptions/${encodeURIComponent(name)}/refresh`)
-    ElMessage.success(t('sub.refreshSuccess'))
+    const res = await api.post(`/api/subscriptions/${encodeURIComponent(name)}/refresh`)
+    const added = res.added || 0
+    const removed = res.removed || 0
+    const total = res.total || 0
+    if (added > 0 || removed > 0) {
+      ElMessage.success(t('sub.refreshResult', { added, removed, total }))
+    } else {
+      ElMessage.success(t('sub.refreshSuccess'))
+    }
     await subStore.loadConfig()
   } catch (e: any) {
     ElMessage.error(e.message || t('common.error'))
   } finally {
     refreshingMap[name] = false
   }
+}
+
+const handleEdit = (row: any) => {
+  editTarget.value = { name: row.name, url: row.url }
+  editDialogVisible.value = true
 }
 
 const handleDelete = async (name: string) => {
@@ -86,6 +110,10 @@ const handleDelete = async (name: string) => {
 }
 
 const handleAdded = async () => {
+  await subStore.loadConfig()
+}
+
+const handleSaved = async () => {
   await subStore.loadConfig()
 }
 
