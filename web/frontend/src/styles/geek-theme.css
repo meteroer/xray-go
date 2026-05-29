@@ -329,3 +329,41 @@ html, body {
   color: var(--geek-text-secondary);
   font-size: 12px;
 }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  /* Table horizontal scroll */
+  .el-table {
+    min-width: 600px;
+  }
+
+  /* Dialog full width */
+  .el-dialog {
+    width: 92vw !important;
+    margin: 4vh auto !important;
+  }
+
+  /* Card inner padding */
+  .el-card__body {
+    padding: 16px !important;
+  }
+
+  /* Collapse header */
+  .el-collapse-item__header {
+    padding-left: 12px !important;
+    font-size: 13px !important;
+  }
+
+  /* Page titles */
+  .geek-title {
+    font-size: 16px;
+    margin-bottom: 16px;
+    padding-left: 10px;
+    border-left-width: 2px;
+  }
+}
+
+/* Viewport overflow fix */
+html, body {
+  overflow-x: hidden;
+}

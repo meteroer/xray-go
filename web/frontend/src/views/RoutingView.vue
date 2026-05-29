@@ -94,4 +94,19 @@ onMounted(async () => {
 .save-btn {
   font-size: 13px;
 }
+@media (max-width: 768px) {
+  .routing-page :deep(.el-form-item__label) {
+    width: auto !important;
+    min-width: 0;
+    text-align: left;
+    padding-bottom: 4px;
+  }
+  .routing-page :deep(.el-form-item) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .routing-page :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+  }
+}
 </style>

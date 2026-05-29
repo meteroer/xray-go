@@ -20,6 +20,7 @@
         :name="sub.name"
         class="sub-group"
       >
+        <div class="table-scroll">
         <el-table :data="filteredNodes(sub.nodes)" stripe style="width: 100%" size="small">
           <el-table-column prop="name" :label="t('node.name')" min-width="160" show-overflow-tooltip />
           <el-table-column :label="t('node.address')" min-width="180">
@@ -49,6 +50,7 @@
             </template>
           </el-table-column>
         </el-table>
+        </div>
       </el-collapse-item>
 
       <el-collapse-item
@@ -57,6 +59,7 @@
         name="standalone"
         class="sub-group"
       >
+        <div class="table-scroll">
         <el-table :data="filteredNodes(subStore.standaloneNodes)" stripe style="width: 100%" size="small">
           <el-table-column prop="name" :label="t('node.name')" min-width="160" show-overflow-tooltip />
           <el-table-column :label="t('node.address')" min-width="180">
@@ -89,6 +92,7 @@
             </template>
           </el-table-column>
         </el-table>
+        </div>
       </el-collapse-item>
     </el-collapse>
 
@@ -243,5 +247,20 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.06);
   padding: 2px 8px;
   border-radius: 4px;
+}
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 768px) {
+  .toolbar {
+    flex-wrap: wrap;
+  }
+  .region-select {
+    width: 100%;
+  }
+  .flex-grow {
+    display: none;
+  }
 }
 </style>

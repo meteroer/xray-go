@@ -33,4 +33,9 @@ onUnmounted(() => {
   position: relative;
   z-index: 1;
 }
+@media (max-width: 768px) {
+  .main-content {
+    padding: 16px 12px;
+  }
+}
 </style>

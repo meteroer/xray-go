@@ -6,6 +6,7 @@
     </div>
 
     <el-card shadow="never" class="sub-card">
+      <div class="table-scroll">
       <el-table :data="subStore.subscriptions" stripe style="width: 100%">
         <el-table-column prop="name" :label="t('sub.name')" width="180" />
         <el-table-column prop="url" :label="t('sub.url')" min-width="260" show-overflow-tooltip>
@@ -35,6 +36,7 @@
           </template>
         </el-table-column>
       </el-table>
+      </div>
     </el-card>
 
     <AddSubscriptionDialog
@@ -113,5 +115,16 @@ onMounted(() => {
 .mono-url {
   font-size: 12px;
   color: var(--geek-text-secondary);
+}
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
 }
 </style>

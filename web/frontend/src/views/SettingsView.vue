@@ -171,4 +171,29 @@ onMounted(async () => {
 .logout-btn {
   font-size: 13px;
 }
+@media (max-width: 768px) {
+  .settings-page :deep(.el-form-item__label) {
+    width: auto !important;
+    min-width: 0;
+    text-align: left;
+    padding-bottom: 4px;
+  }
+  .settings-page :deep(.el-form-item) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .settings-page :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+  }
+  .mode-select {
+    width: 100%;
+  }
+  .port-input {
+    width: 100%;
+  }
+  .save-mode-btn {
+    margin-left: 0;
+    margin-top: 8px;
+  }
+}
 </style>

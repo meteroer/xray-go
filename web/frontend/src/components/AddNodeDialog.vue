@@ -4,6 +4,7 @@
     @update:model-value="$emit('update:modelValue', $event)"
     :title="t('node.add')"
     width="520px"
+    class="add-node-dialog"
   >
     <el-form @submit.prevent="handleSubmit">
       <el-form-item :label="t('node.addHint')">
@@ -55,3 +56,12 @@ const handleSubmit = async () => {
   }
 }
 </script>
+
+<style>
+@media (max-width: 768px) {
+  .add-node-dialog .el-dialog {
+    width: 92vw !important;
+    margin: 4vh auto !important;
+  }
+}
+</style>

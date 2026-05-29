@@ -109,4 +109,13 @@ const handleSubmit = async () => {
   height: 40px;
   font-size: 14px;
 }
+@media (max-width: 768px) {
+  .login-container {
+    padding: 16px;
+  }
+  .login-card {
+    width: 100%;
+    max-width: 420px;
+  }
+}
 </style>

@@ -125,4 +125,21 @@ const handleStop = async () => {
   margin-right: 6px;
   font-size: 10px;
 }
+@media (max-width: 768px) {
+  .proxy-status {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .status-left {
+    gap: 16px;
+  }
+  .status-right {
+    justify-content: stretch;
+  }
+  .action-btn {
+    min-width: 0;
+    flex: 1;
+  }
+}
 </style>

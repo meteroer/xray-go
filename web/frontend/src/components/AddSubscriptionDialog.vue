@@ -4,6 +4,7 @@
     @update:model-value="$emit('update:modelValue', $event)"
     :title="t('sub.add')"
     width="520px"
+    class="add-sub-dialog"
   >
     <el-form :model="form" @submit.prevent="handleSubmit">
       <el-form-item :label="t('sub.name')">
@@ -53,3 +54,12 @@ const handleSubmit = async () => {
   }
 }
 </script>
+
+<style>
+@media (max-width: 768px) {
+  .add-sub-dialog .el-dialog {
+    width: 92vw !important;
+    margin: 4vh auto !important;
+  }
+}
+</style>
